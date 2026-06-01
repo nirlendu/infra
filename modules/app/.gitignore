@@ -1,0 +1,5 @@
+# Terraform working artifacts (from `terraform validate` in examples/)
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*

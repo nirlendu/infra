@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is .gitignored.
+
+# REQUIRED.
+alert_email = "you@example.com"
+
+aws_region        = "us-east-1"
+availability_zone = "us-east-1a"
+env               = "prod"
+
+# Total monthly cap. Default $80 ≈ 25% headroom over 1-app expected (~$63).
+# Raise deliberately when adding apps.
+monthly_budget_usd    = 80
+daily_anomaly_usd     = 4       # fires at ~2x steady-state daily run rate
+billing_alarm_usd     = 120
+anomaly_threshold_usd = 3
+
+# Per-service tripwires. Each catches its service the day it starts charging.
+ec2_budget_usd           = 40   # one t4g.medium + IPv4 ≈ $28; cap leaves headroom for a 2nd small host
+rds_budget_usd           = 32   # db.t4g.small + storage ≈ $29
+vpc_budget_usd           = 1    # VPC itself is free — any spend = NAT/VPCe/TGW
+elb_budget_usd           = 1    # we never want an ALB/NLB
+data_transfer_budget_usd = 5    # ~55 GB egress beyond the 100 GB free tier
+
+# db.t4g.small fits 3-5 small apps. Step up to .medium when you outgrow it.
+rds_instance_class = "db.t4g.small"
+rds_storage_gb     = 20
+rds_storage_max_gb = 50   # hard cap on autoscale
