@@ -155,7 +155,7 @@ resource "aws_ce_anomaly_monitor" "all_services" {
 resource "aws_ce_anomaly_subscription" "email" {
   provider         = aws.billing
   name             = "shared-${var.env}-anomaly-email"
-  frequency        = "IMMEDIATE"
+  frequency        = "DAILY" # EMAIL subscribers support DAILY/WEEKLY only; IMMEDIATE is SNS-only
   monitor_arn_list = [aws_ce_anomaly_monitor.all_services.arn]
 
   subscriber {
