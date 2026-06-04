@@ -3,3 +3,6 @@
 *.tfstate.*
 terraform.tfvars
 crash.log
+
+*.tfplan
+plan-review.txt
