@@ -12,9 +12,26 @@ Account-wide AWS resources every app in this account consumes:
 
 ## What this is NOT
 
-- Not per-app. App-specific resources (EC2 host, EBS, S3 backups, Caddy, app secrets) live in each app's own `infra/`.
-- Not shared compute. Apps run on their own EC2 hosts — only DB + VPC are shared.
+- Not per-app. App-specific resources (compute, S3 backups, app secrets, the edge) live in each app's own `infra/`.
+- Not shared compute. Only DB + VPC are shared. Each app brings its own compute and picks its own shape — see below.
 - Not shared Redis or ClickHouse. Those colocate with the app that uses them.
+
+## Two sanctioned compute shapes
+
+| | EC2 host | **ECS Fargate** |
+|---|---|---|
+| Stack | [`modules/app/`](modules/app/) — instance + EBS + EIP + user-data | the app's own `infra/` (authoxi is the reference) |
+| Cost | ~$30/mo | ~$13/mo |
+| Front door | Caddy on the host, CloudFront in front | API Gateway HTTP API → VPC link → Cloud Map |
+| Deploy | `git pull` on the host | push an immutable image tag, `terraform apply` |
+| Ops surface | a host to patch, a bootstrap script to rot | none |
+
+**Fargate is the better default now** (added 2026-07-14, authoxi first). It is cheaper *and* has no
+host to maintain, which matters most for a service left running unattended for months. The catch is
+that Fargate's obvious design — an ALB in front — is both denied by the cost guardrails and ~$16/mo;
+the sanctioned design routes API Gateway to a Cloud Map service instead, and needs no load balancer
+and no NAT Gateway. `modules/app/` is kept for anything that genuinely needs a host (a daemon, a
+persistent local disk). Read `aeternm/authoxi/infra/PLAN.md` before choosing.
 
 ## What's published for consumers
 
@@ -77,7 +94,10 @@ RDS provisioning takes ~8–10 minutes.
 
 The $3/mo for extra Budgets is deliberate insurance — see [`COST-GUARDRAILS.md`](COST-GUARDRAILS.md).
 
-Per consumer app adds ~$30/mo on top (its own EC2 host + EBS) — see that app's own `infra/PLAN.md` (e.g. agentlox's). The reusable per-app stack lives in [`modules/app/`](modules/) so a new product inherits it instead of re-authoring it.
+Per consumer app adds **~$13/mo on Fargate** (task + its public IPv4 + logs; authoxi) or **~$30/mo on
+EC2** (host + EBS + EIP; agentlox) — see that app's own `infra/PLAN.md`. The reusable EC2 stack lives
+in [`modules/app/`](modules/); the Fargate stack is not yet a module (one consumer — generalize it
+when there's a second, not before).
 
 ## Connecting an app to this stack
 
@@ -104,13 +124,20 @@ resource "aws_security_group_rule" "rds_from_host" {
 }
 ```
 
-App's user-data uses the master password (one-shot read from SSM at boot) to:
+The app then provisions its own database + role, once, using the master password:
 
 1. `CREATE ROLE <app>_app LOGIN PASSWORD '<per-app-pw>';`
 2. `CREATE DATABASE <app>_db OWNER <app>_app;`
 3. `REVOKE ALL ON DATABASE <app>_db FROM PUBLIC;`
 
-…and then connects as `<app>_app` going forward. See agentlox's `infra/scripts/user-data.sh` for the working pattern.
+…and connects as `<app>_app` from then on. **On EC2** that runs in user-data at first boot (see
+agentlox's `infra/scripts/user-data.sh`). **On Fargate** it is a one-shot ECS task with its own
+execution role (see authoxi's `app/ops/bootstrap_db.py` + `terraform output bootstrap_command`).
+
+The Fargate split is strictly safer, and worth copying: on EC2 the long-lived host holds the
+master-password grant *forever*, because user-data needed it once at boot. On Fargate only a task
+that runs for four seconds can read it — the API task's role cannot. That takes the blast radius
+below from "always" to "during bootstrap", for free.
 
 ## Security trade-offs
 

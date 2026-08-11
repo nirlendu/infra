@@ -38,6 +38,17 @@ data "aws_iam_policy_document" "cost_guardrails" {
   }
 
   # ── #3 Block expensive managed services we deliberately don't use. ────────
+  #
+  # NOT on this list (deliberate, 2026-07-14): `ecs:CreateCluster`. An ECS cluster
+  # is a free control-plane object — it costs nothing by itself, unlike EKS ($73/mo
+  # just to exist). Fargate is billed per vCPU-second on the TASKS, and a 0.25 vCPU
+  # ARM task is ~$8.50/mo — cheaper than the t4g.small EC2 host it replaces. The
+  # thing worth guarding against is not "an ECS cluster exists" but "the tasks got
+  # big or numerous", and no IAM condition key exposes task size — so ECS is
+  # guarded by a BUDGET (D17, `ecs_budget_usd`), not by a deny. The denies that
+  # actually matter for Fargate — NAT Gateway and load balancers — are #1 and #2
+  # above, and the sanctioned Fargate design (API Gateway HTTP API → VPC Link →
+  # Cloud Map → task in a public subnet) needs neither.
   statement {
     sid    = "DenyExpensiveManagedServices"
     effect = "Deny"
@@ -53,8 +64,7 @@ data "aws_iam_policy_document" "cost_guardrails" {
       "sagemaker:CreateEndpoint",
       "sagemaker:CreateDomain",
       "eks:CreateCluster",
-      "ecs:CreateCluster",
-      "kafka:CreateCluster",   # Amazon MSK — pricey by default
+      "kafka:CreateCluster", # Amazon MSK — pricey by default
       "kafka:CreateClusterV2",
       "emr:RunJobFlow",
       "memorydb:CreateCluster",

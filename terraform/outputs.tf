@@ -50,7 +50,7 @@ output "cost_restricted_group_name" {
 
 output "first_apply_command" {
   description = "Apply this targeted set FIRST so EVERY tripwire is live before any billable resource spins up."
-  value = <<-EOT
+  value       = <<-EOT
     terraform apply \
       -target=aws_sns_topic.budget_alerts \
       -target=aws_sns_topic_subscription.budget_alerts_email \

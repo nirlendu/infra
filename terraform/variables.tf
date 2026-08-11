@@ -85,6 +85,12 @@ variable "data_transfer_budget_usd" {
   default     = 5
 }
 
+variable "ecs_budget_usd" {
+  description = "Cap on monthly ECS/Fargate spend. Default $25 ≈ 2x one 0.25 vCPU / 1 GB ARM task + its public IPv4. This budget is the ONLY guardrail on Fargate task size/count — IAM has no condition key for either."
+  type        = number
+  default     = 25
+}
+
 # ───── RDS sizing ─────
 
 variable "rds_instance_class" {
@@ -94,9 +100,9 @@ variable "rds_instance_class" {
 }
 
 variable "rds_engine_version" {
-  description = "Postgres engine version. Pin a minor for deterministic upgrades."
+  description = "Postgres engine version. Pin a minor for deterministic upgrades. 16.12 matches the app's docker-compose pin (postgres:16.12-alpine); bump only when RDS retires it (16.4 was retired 2026-07)."
   type        = string
-  default     = "16.4"
+  default     = "16.12"
 }
 
 variable "rds_storage_gb" {

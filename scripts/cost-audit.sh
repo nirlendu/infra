@@ -9,6 +9,11 @@
 # Runs anywhere with AWS creds — an EC2 host (cron, Monday 04:00 UTC, installed
 # by a host's user-data) OR an operator workstation. No app-specific assumptions.
 #
+# NOTE (2026-07-14): apps on Fargate have no host to cron this from. authoxi is the
+# first; until a second app needs it, run this from your workstation weekly rather
+# than building a scheduled task to run it. Set a calendar reminder — an audit nobody
+# runs is worth exactly nothing.
+#
 # Usage:
 #   ./cost-audit.sh                       # log to stdout + $LOG
 #   ./cost-audit.sh s3://bucket/prefix    # also ship the audit to S3 for history
@@ -95,14 +100,45 @@ note() { echo "[$(date -u +%FT%TZ)] $*"; }
     --output table 2>&1 || echo "  (aws cli failed)"
   echo ""
 
-  # ── 8. CloudWatch log groups & retention ───────────────────────────────────
-  note "8. CloudWatch log groups (ingest+storage cost; watch for null retention = forever):"
+  # ── 8. ECS / Fargate ───────────────────────────────────────────────────────
+  #
+  # ECS is the ONE service in this account with no IAM deny standing behind it
+  # (see 04-cost-guardrails.tf #3): a cluster is free, so denying it would have
+  # bought nothing, while the things that DO cost money — task size and task count
+  # — have no IAM condition key to deny on. Which makes this audit and the
+  # `shared-<env>-ecs` budget the only two things watching Fargate. Read it.
+  note "8. ECS clusters / services / running tasks (task cpu+memory is the cost):"
+  for CLUSTER in $(aws ecs list-clusters --region "${REGION}" --query 'clusterArns[]' --output text 2>/dev/null); do
+    CNAME="${CLUSTER##*/}"
+    echo "  cluster: ${CNAME}"
+    aws ecs list-services --region "${REGION}" --cluster "${CNAME}" --query 'serviceArns[]' --output text 2>/dev/null \
+      | tr '\t' '\n' | while read -r SVC; do
+          [ -z "${SVC}" ] && continue
+          aws ecs describe-services --region "${REGION}" --cluster "${CNAME}" --services "${SVC##*/}" \
+            --query 'services[0].[serviceName,desiredCount,runningCount,taskDefinition]' --output text 2>/dev/null \
+            | while read -r SNAME DESIRED RUNNING TD; do
+                SIZE=$(aws ecs describe-task-definition --region "${REGION}" --task-definition "${TD}" \
+                  --query 'taskDefinition.[cpu,memory]' --output text 2>/dev/null | tr '\t' '/')
+                printf "    %-28s desired=%s running=%s  cpu/mem=%s\n" "${SNAME}" "${DESIRED}" "${RUNNING}" "${SIZE:-?}"
+                # 256 cpu = 0.25 vCPU. Anything bigger is a deliberate decision that
+                # should have come with a budget bump — if it didn't, that's the finding.
+                case "${SIZE}" in
+                  256/*) ;;
+                  ?*) echo "      ⚠️  task is LARGER than 0.25 vCPU — confirm this was intended." ;;
+                esac
+              done
+        done
+  done
+  echo ""
+
+  # ── 9. CloudWatch log groups & retention ───────────────────────────────────
+  note "9. CloudWatch log groups (ingest+storage cost; watch for null retention = forever):"
   aws logs describe-log-groups --region "${REGION}" \
     --query 'logGroups[*].[logGroupName,storedBytes,retentionInDays]' --output table 2>&1 || echo "  (aws cli failed)"
   echo ""
 
-  # ── 9. S3 buckets + approximate size ────────────────────────────────────────
-  note "9. S3 buckets (size via list — may be slow on big buckets):"
+  # ── 10. S3 buckets + approximate size ───────────────────────────────────────
+  note "10. S3 buckets (size via list — may be slow on big buckets):"
   aws s3 ls 2>&1 | while read -r line; do
     BNAME=$(echo "${line}" | awk '{print $NF}'); [ -z "${BNAME}" ] && continue
     SIZE=$(aws s3 ls "s3://${BNAME}" --recursive --summarize 2>/dev/null | tail -1 | awk '{print $3}')
@@ -110,8 +146,8 @@ note() { echo "[$(date -u +%FT%TZ)] $*"; }
   done
   echo ""
 
-  # ── 10. Month-to-date spend (best-effort) ──────────────────────────────────
-  note "10. Current month-to-date spend:"
+  # ── 11. Month-to-date spend (best-effort) ──────────────────────────────────
+  note "11. Current month-to-date spend:"
   MTD=$(aws ce get-cost-and-usage --region us-east-1 \
     --time-period "Start=$(date -u +%Y-%m-01),End=$(date -u +%Y-%m-%d)" \
     --granularity MONTHLY --metrics UnblendedCost \

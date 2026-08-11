@@ -165,3 +165,46 @@ resource "aws_budgets_budget" "data_transfer" {
     subscriber_email_addresses = [var.alert_email]
   }
 }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ECS/Fargate cap — the guardrail that REPLACES the `ecs:CreateCluster` deny
+# (removed 2026-07-14; see 04-cost-guardrails.tf #3 for the reasoning).
+#
+# Fargate has no idle floor to catch: the cluster object is free, and tasks bill
+# per vCPU-second. What CAN run away is task SIZE (someone bumps cpu 256 → 4096)
+# or task COUNT (an autoscaling rule, or a crash-looping service ECS keeps
+# replacing). Neither is expressible as an IAM condition key, so a budget is the
+# only enforcement available — which is exactly why this exists.
+#
+# Default $25 ≈ 2× what authoxi's one 0.25 vCPU / 1 GB ARM task costs (~$8.50/mo)
+# plus its public IPv4 (~$3.65/mo). Fires well before a fat task reaches a bill.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "aws_budgets_budget" "ecs" {
+  provider     = aws.billing
+  name         = "shared-${var.env}-ecs"
+  budget_type  = "COST"
+  limit_amount = tostring(var.ecs_budget_usd)
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name   = "Service"
+    values = ["Amazon Elastic Container Service"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.alert_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+}

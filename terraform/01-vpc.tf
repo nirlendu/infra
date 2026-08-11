@@ -43,8 +43,8 @@ data "aws_availability_zones" "available" {
 }
 
 resource "aws_subnet" "private_b" {
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = var.private_subnet_b_cidr
+  vpc_id     = aws_vpc.this.id
+  cidr_block = var.private_subnet_b_cidr
   # RDS subnet group requires 2 distinct AZs — pick the first AZ != primary.
   availability_zone = [for az in data.aws_availability_zones.available.names : az if az != var.availability_zone][0]
 

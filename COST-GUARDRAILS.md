@@ -5,7 +5,7 @@
 
 This is the **account-wide** cost doctrine for the whole AWS account — owned by `personal/infra/`
 (shared-infra) and consumed by every product. The judgment layer that decides *whether to spend at
-all* is the boardroom `cost-guardrails` skill (`personal/boardroom/canon/skills/cost-guardrails/`);
+all* is the boardroom `cost-guardrails` skill (`_personal/boardroom/canon/skills/cost-guardrails/`);
 **this doc is the mechanical map** of what's deployed to catch spend when it happens.
 
 The plan stacks **independent detection layers** plus **prevention layers**. Each exists because any
@@ -38,6 +38,7 @@ needs a baseline, CloudWatch alarms can be muted. Layers split into **account-wi
                         │  D5. VPC anti-budget — $1 (NAT catch)    │
                         │  D6. ELB anti-budget — $1 (ALB catch)    │
                         │  D7. Data transfer — $5                  │
+                        │  D17. ECS/Fargate — $25 (task size/count)│
                         ├────────────────────────────────────────┤
    per-app Budgets      │  D8. App-tag-filtered — $40 (in infra/) │
                         ├────────────────────────────────────────┤
@@ -67,12 +68,24 @@ the worst surprises. This is the mechanical enforcement of the skill's killer-se
 
 - `ec2:CreateNatGateway` — the #1 silent bill (~$33/mo idle)
 - `elasticloadbalancing:Create*` — ALB/NLB (~$16/mo+)
-- `elasticache:Create*`, `redshift:Create*`, `sagemaker:Create*`, `eks:Create*`, `ecs:Create*`, `emr:RunJobFlow`, `transfer:CreateServer`, `es:CreateDomain` + more pricey-by-default services
+- `elasticache:Create*`, `redshift:Create*`, `sagemaker:Create*`, `eks:Create*`, `emr:RunJobFlow`, `transfer:CreateServer`, `es:CreateDomain` + more pricey-by-default services
 - `ec2:RunInstances` for any instance type larger than `t4g.large` / `t3.medium`
 - `ec2:CreateVolume` for volumes > 200 GB or io1/io2 (provisioned IOPS)
 - `rds:CreateDBInstance` for anything larger than `db.t4g.medium`
 - `rds:ModifyDBInstance` to enable Multi-AZ (doubles RDS cost)
 - `rds:CreateDBInstance` with CloudWatch Logs export enabled ($0.50/GB ingest)
+
+**`ecs:CreateCluster` was removed from this list on 2026-07-14** — read this before putting it back.
+An ECS cluster is a free control-plane object; unlike EKS ($73/mo just to exist) it costs nothing by
+itself. Fargate bills per vCPU-second on the **tasks**, and the sanctioned per-app design (0.25 vCPU
+ARM64) runs ~$8.50/mo — *cheaper than the t4g.small EC2 host it replaces*. Denying the cluster would
+have bought nothing while blocking the cheaper option.
+
+The two things that can actually run away on Fargate — **task size** and **task count** — have no IAM
+condition key, so they cannot be denied at all. They are caught by **D17** (the ECS budget) and by
+**cost-audit §8**, which flags any task larger than 0.25 vCPU. Fargate's real cost traps are NAT
+Gateway and load balancers, and those are still denied above: the sanctioned design (API Gateway HTTP
+API → VPC link → Cloud Map → task in a public subnet) needs neither. See `aeternm/authoxi/infra/PLAN.md`.
 
 **Opt-in.** Created by Terraform but *not* attached. To activate:
 
@@ -107,6 +120,7 @@ AWS physically refuses to provision past a quota. Lower these once (free changes
 | `vpc` | $1 | NAT Gateway, VPC Endpoints, Transit Gateway |
 | `elb` | $1 | ALB / NLB / Classic ELB creation |
 | `data_transfer` | $5 | egress runaway — the #1 hidden cost |
+| `ecs` (**D17**) | $25 | Fargate task resize or task-count runaway — **the only guardrail on either** |
 
 ### D8. Per-app tag-filtered budget (each product's `infra/`)
 
@@ -154,6 +168,7 @@ Gateways (expected: 0), load balancers (expected: 0), RDS instances (expected: 1
 |---|---|---|
 | `shared-prod-vpc-anti-budget` | NAT Gateway / VPC Endpoint | `aws ec2 describe-nat-gateways` |
 | `shared-prod-elb-anti-budget` | ALB / NLB created | `aws elbv2 describe-load-balancers` |
+| `shared-prod-ecs` | Fargate task got bigger, or task count grew | `cost-audit.sh` §8 — compare `cpu/mem` and `desired` against the app's PLAN |
 | `shared-prod-daily-anomaly` | something started costing money today | last cost-audit log + Cost Explorer last 24 h |
 | `shared-prod-ec2` | bigger / extra instance | `aws ec2 describe-instances` |
 | `shared-prod-rds` | RDS resize, Multi-AZ, or PIOPS | `aws rds describe-db-instances` |
@@ -164,7 +179,7 @@ Gateways (expected: 0), load balancers (expected: 0), RDS instances (expected: 1
 | AWS Cost Anomaly Detection | per-service spike | the email names the service |
 
 Reflex: identify the resource → confirm intended → kill if not → if intended, record the spend + its
-kill condition in `personal/boardroom/docs/CAPITAL.md`. **A fired-and-ignored guardrail = no guardrail.**
+kill condition in `_personal/boardroom/docs/CAPITAL.md`. **A fired-and-ignored guardrail = no guardrail.**
 
 ---
 
