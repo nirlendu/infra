@@ -386,12 +386,32 @@ data "aws_iam_policy_document" "agent_allow_app" {
     }
   }
 
+  # CloudFront FUNCTIONS are not a taggable resource — CreateFunction takes no tags, so the
+  # aws:RequestTag/Project condition below can never be satisfied for it and the call is denied
+  # no matter what terraform sends. It was grouped with the other Create* verbs, where it looked
+  # granted and was not: the same shape of bug as ssm:DescribeParameters scoped to a path.
+  #
+  # Untagged and unconditioned, therefore, but narrowed by NAME instead — the agent may only
+  # create functions in authoxi's own namespace.
+  statement {
+    sid = "CloudFrontFunctionsUntaggable"
+    # The WHOLE lifecycle, not just Create. Every one of these was already granted elsewhere
+    # under an aws:ResourceTag/Project condition that a function can never satisfy, so each one
+    # fails in turn as terraform walks create -> publish -> associate. Scoped by NAME instead.
+    actions = [
+      "cloudfront:CreateFunction", "cloudfront:PublishFunction", "cloudfront:UpdateFunction",
+      "cloudfront:DeleteFunction", "cloudfront:DescribeFunction", "cloudfront:GetFunction",
+      "cloudfront:TestFunction",
+    ]
+    resources = ["arn:aws:cloudfront::${local.acct}:function/${local.authoxi_prefix}-*"]
+  }
+
   # Create* has no pre-existing resource to carry a tag, so it takes the
   # RequestTag form instead. Terraform's default_tags supplies it.
   statement {
     sid = "CloudFrontCreateTagged"
     actions = [
-      "cloudfront:CreateDistribution", "cloudfront:CreateFunction",
+      "cloudfront:CreateDistribution",
       "cloudfront:CreateCachePolicy", "cloudfront:CreateOriginAccessControl",
     ]
     resources = ["*"]
