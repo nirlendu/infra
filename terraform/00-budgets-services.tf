@@ -78,15 +78,25 @@ resource "aws_budgets_budget" "rds" {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# VPC spend cap — set to $1. VPC itself is free. Any spend here means:
-#   - NAT Gateway ($32.85/mo idle + $0.045/GB)
-#   - VPC Endpoint ($7-15/mo each)
-#   - Transit Gateway ($36/mo + attachments)
-# Fires on the FIRST DAY of any of these.
+# VPC spend — a real budget, NOT an anti-budget.
+#
+# This was $1 and meant to catch a NAT Gateway on its first day. It cannot: since
+# Feb 2024 AWS bills every in-use public IPv4 address at $0.005/hr, and that lands
+# under "Amazon Virtual Private Cloud" too. Each Fargate task with a public IP is
+# ~$3.08/mo, so two tasks put this budget permanently at $6.08 against a $1 limit.
+#
+# A tripwire that is red no matter what detects nothing. That is precisely the
+# failure the August post-mortem found in `data_transfer` — a budget aimed at the
+# wrong thing, reading a number nobody could act on — sitting undetected in the
+# budget next to it.
+#
+# So it splits in two: this one sized for the public IPv4 addresses we legitimately
+# run, and `nat_gateway` below aimed at NAT alone via usage type, where $1 is
+# genuinely zero.
 # ──────────────────────────────────────────────────────────────────────────────
 resource "aws_budgets_budget" "vpc" {
   provider     = aws.billing
-  name         = "shared-${var.env}-vpc-anti-budget"
+  name         = "shared-${var.env}-vpc"
   budget_type  = "COST"
   limit_amount = tostring(var.vpc_budget_usd)
   limit_unit   = "USD"
@@ -284,5 +294,103 @@ resource "aws_budgets_budget" "cloudfront" {
     threshold_type             = "PERCENTAGE"
     notification_type          = "FORECASTED"
     subscriber_email_addresses = [var.alert_email]
+  }
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NAT Gateway anti-budget — $1, and genuinely zero.
+#
+# Filtered on USAGE TYPE rather than service, because the service dimension is
+# already occupied by legitimate public IPv4 spend (see the VPC budget above).
+# NAT bills as `<region>-NatGateway-Hours` and `-Bytes`, so a filter on those
+# names is silent until a NAT exists and fires the day one does.
+#
+# Belt and braces with the IAM guardrail that denies `ec2:CreateNatGateway`
+# outright: the deny stops the common case, this catches a NAT created by
+# something the deny does not cover — a console session with different
+# permissions, or a future role written without the policy attached.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "aws_budgets_budget" "nat_gateway" {
+  provider     = aws.billing
+  name         = "shared-${var.env}-nat-anti-budget"
+  budget_type  = "COST"
+  limit_amount = "1"
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  # VERIFIED against the AWS pricing API, not guessed. us-east-1 is the home
+  # region and omits the location prefix, so these are `NatGateway-Hours`, NOT
+  # `USE1-NatGateway-Hours` — which is what this filter said first, and would have
+  # matched nothing forever. A NAT anti-budget aimed at a usage type that does not
+  # exist is the same defect as the three already found in this account, and it is
+  # only absent because the strings were checked rather than assumed.
+  #
+  # ap-south-1 forms are deliberately NOT listed: they are unverified, and the VPC
+  # budget below has no region filter, so a NAT anywhere still trips that within a
+  # day ($33/mo against a $15 limit already carrying ~$9 of IPv4).
+  cost_filter {
+    name = "UsageType"
+    values = [
+      "NatGateway-Hours",
+      "NatGateway-Bytes",
+      "RegionalNatGateway-Hours",
+      "USE1-RegionalNatGateway-Bytes",
+    ]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 1
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+    subscriber_sns_topic_arns  = [aws_sns_topic.budget_alerts.arn]
+  }
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# S3 — the line nobody was watching.
+#
+# S3 has cost $11.01, $10.73 and $11.16 across June, July and August: the only
+# flat line in the account, and the third largest. It had no budget at all.
+#
+# $9.30 of it is ap-south-1 — roughly 180 GB of storage plus ~11.8M GET requests
+# in a region that runs no compute. That is the same shape as the CloudFront
+# incident (abandoned content still being crawled) one layer down and quieter,
+# and it had no tripwire while CloudFront got one.
+#
+# Sized at $20 rather than $12 because the documents bucket is about to start
+# growing with real uploads and a budget that fires on expected growth teaches
+# people to ignore it.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "aws_budgets_budget" "s3" {
+  provider     = aws.billing
+  name         = "shared-${var.env}-s3"
+  budget_type  = "COST"
+  limit_amount = tostring(var.s3_budget_usd)
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name   = "Service"
+    values = ["Amazon Simple Storage Service"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.alert_email]
+    subscriber_sns_topic_arns  = [aws_sns_topic.budget_alerts.arn]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+    subscriber_sns_topic_arns  = [aws_sns_topic.budget_alerts.arn]
   }
 }
