@@ -10,6 +10,25 @@ Account-wide AWS resources every app in this account consumes:
 
 > Currently lives inside the `agentlox` repo for convenience. When a second app starts consuming this stack, lift `shared-infra/` into its own repo / Terraform state.
 
+## Stacks in this repo
+
+| Directory | State key | What |
+|---|---|---|
+| [`terraform/`](terraform/) | `shared/` | Greenfield shared-infra — VPC, RDS, budgets, SNS, SSM |
+| [`existing/`](existing/) | `existing/` | Imported replica of the pre-existing live AWS footprint (S3, CloudFront, ACM) |
+| [`cloudflare/`](cloudflare/) | `cloudflare/` | **The edge.** Cache rules, rate limiting, bot protection |
+| [`modules/app/`](modules/app/) | — | Reusable per-app EC2 module |
+
+**Read [`cloudflare/README.md`](cloudflare/README.md) before touching anything CDN-shaped.** Every
+domain in this account is Cloudflare-proxied, which means Cloudflare — not CloudFront — is the real
+user-facing edge, and CloudFront is only an origin. Two consequences that are easy to get backwards:
+
+- **CloudFront caching does not reduce cost.** CloudFront bills full egress on a cache *hit*. Only
+  requests that never reach it are free. Cloudflare's cache is the cost control.
+- **Cloudflare does not cache HTML by default** (`cf-cache-status: DYNAMIC`). That default alone
+  accounted for ~$152 of a $271 month in Aug 2026. See the post-mortem in
+  [`COST-GUARDRAILS.md`](COST-GUARDRAILS.md).
+
 ## What this is NOT
 
 - Not per-app. App-specific resources (compute, S3 backups, app secrets, the edge) live in each app's own `infra/`.

@@ -28,9 +28,21 @@ variable "alert_email" {
 }
 
 variable "monthly_budget_usd" {
-  description = "Total monthly AWS spend ceiling. Default $80 ≈ 25% headroom over expected for 1 app. Raise deliberately as apps are added."
+  description = <<-EOT
+    Total monthly AWS spend ceiling — the catch-all beneath every per-service
+    budget, and the only one that sees spend on a service nobody thought to name.
+
+    Raised 80 -> 110 for uni. Measured steady state after it lands: RDS $26 +
+    ECS $16.50 (three tasks, Spot) + S3 $11 + IPv4 $9.25 + Route 53 $1 + a
+    CloudFront line that should settle near its June figure. That is ~$75, and an
+    80% forecast alert on $80 would have fired on arrival — which is how a
+    genuine ceiling becomes noise people filter.
+
+    This is the number to revisit when a product is added, not the per-service
+    ones. It should sit close enough to reality to mean something.
+  EOT
   type        = number
-  default     = 80
+  default     = 110
 }
 
 variable "daily_anomaly_usd" {
@@ -68,9 +80,32 @@ variable "rds_budget_usd" {
 }
 
 variable "vpc_budget_usd" {
-  description = "Cap on monthly VPC spend. Default $1 — anything above zero means somebody created a NAT Gateway or VPC endpoint."
+  description = <<-EOT
+    Cap on monthly VPC spend — public IPv4 addresses, in practice.
+
+    Was $1 as a NAT anti-budget, which stopped working the moment AWS began
+    billing in-use public IPv4 at $0.005/hr under this same service. Each Fargate
+    task with a public IP is ~$3.08/mo, so two tasks held it permanently at $6.08
+    against a $1 limit and it could no longer detect anything.
+
+    $15 covers four tasks with headroom. NAT now has its own anti-budget filtered
+    on usage type, where $1 is genuinely zero.
+  EOT
   type        = number
-  default     = 1
+  default     = 15
+}
+
+variable "s3_budget_usd" {
+  description = <<-EOT
+    Cap on monthly S3 spend. $11.01 / $10.73 / $11.16 across Jun-Aug — the only
+    flat line in the account, third largest, and it had no budget at all.
+
+    $20 rather than $12 because the documents bucket starts growing with real
+    uploads shortly, and a budget that fires on expected growth is one people
+    learn to dismiss.
+  EOT
+  type        = number
+  default     = 20
 }
 
 variable "elb_budget_usd" {
@@ -80,9 +115,15 @@ variable "elb_budget_usd" {
 }
 
 variable "data_transfer_budget_usd" {
-  description = "Cap on monthly data-transfer-out cost. Default $5 = ~55 GB egress beyond the 100 GB free tier."
+  description = "Cap on monthly data-transfer-out cost for the 'AWS Data Transfer' service line (EC2/inter-region/S3). Default $5 = ~55 GB egress beyond the 100 GB free tier. NOTE: this does NOT cover CloudFront egress — see cloudfront_budget_usd."
   type        = number
   default     = 5
+}
+
+variable "cloudfront_budget_usd" {
+  description = "Cap on monthly CloudFront spend (egress + requests). Default $15 ≈ 3x a normal month once the edge is caching properly. CloudFront bills under its own service line, NOT 'AWS Data Transfer' — a gap that let a $171 bot-traffic bill through undetected in Aug 2026."
+  type        = number
+  default     = 15
 }
 
 variable "ecs_budget_usd" {
@@ -100,9 +141,30 @@ variable "rds_instance_class" {
 }
 
 variable "rds_engine_version" {
-  description = "Postgres engine version. Pin a minor for deterministic upgrades. 16.12 matches the app's docker-compose pin (postgres:16.12-alpine); bump only when RDS retires it (16.4 was retired 2026-07)."
+  description = <<-EOT
+    Postgres MAJOR version. Deliberately not a minor.
+
+    This was pinned to "16.12" to match the app's docker-compose image. That pin
+    could never hold: `auto_minor_version_upgrade = true` is set below, so AWS
+    moves the minor whenever it likes — it moved to 16.13 — and Terraform then
+    plans a DOWNGRADE, which RDS refuses. The stack could not apply at all until
+    this changed, which also blocked the unrelated CloudFront budget sharing it.
+
+    A major-only value is what the provider wants when auto-minor-upgrade is on:
+    it matches any 16.x, so AWS patching stops being drift. Determinism was never
+    actually on offer here — the choice was between a pin that reflects reality
+    and one that fights it.
+
+    Matching the local docker-compose minor was the original justification and it
+    does not survive scrutiny: a dev container and a managed instance have no
+    reason to share a patch level, and Postgres does not break compatibility
+    across them.
+
+    Bump this only for a MAJOR upgrade (16 -> 17), which is a deliberate,
+    downtime-carrying operation and needs `allow_major_version_upgrade`.
+  EOT
   type        = string
-  default     = "16.12"
+  default     = "16"
 }
 
 variable "rds_storage_gb" {
@@ -118,9 +180,25 @@ variable "rds_storage_max_gb" {
 }
 
 variable "rds_backup_retention_days" {
-  description = "RDS automated backup retention. 7 days = free if total snapshot size <= DB size."
+  description = <<-EOT
+    RDS automated backup retention, in days.
+
+    Raised 7 -> 14. Backup storage up to the instance's allocated storage is free,
+    and the measured position is 2.9 GB of data against a 20 GB allocation with
+    `TotalBackupStorageBilled` reading 0.00 — so doubling the window costs nothing
+    and is very likely to stay free.
+
+    Seven days is the wrong number for the failure that actually loses data.
+    Hardware failure is caught in minutes; logical corruption — a bad migration, a
+    delete with a wrong WHERE — is often noticed a week or more later, which is
+    exactly when a 7-day window has just closed.
+
+    This covers the INSTANCE. On a shared instance it does not cover a product:
+    point-in-time recovery restores every database at once, so recovering uni
+    alone still needs its own logical dump. See the pg_dump job in the app stacks.
+  EOT
   type        = number
-  default     = 7
+  default     = 14
 }
 
 # ───── VPC ─────
