@@ -1,0 +1,13 @@
+# Terraform working dir (providers re-download via init)
+.terraform/
+# Local state should never exist here — backend is remote S3
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+# Never commit a Cloudflare API token. Auth is via CLOUDFLARE_API_TOKEN in the
+# environment — a Cloudflare token is an account-wide bearer credential that can
+# repoint DNS for every domain in this account.
+*.auto.tfvars
+terraform.tfvars
+# Keep .terraform.lock.hcl committed (provider version pinning)

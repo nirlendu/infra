@@ -26,6 +26,10 @@ needs a baseline, CloudWatch alarms can be muted. Layers split into **account-wi
    (account-wide)       │      pricey managed services            │
                         ├────────────────────────────────────────┤
    AWS Service Quotas   │  P2. Manual: lower vCPU + RDS quotas     │
+                        ├────────────────────────────────────────┤
+   Cloudflare edge      │  P3. Cache HTML at the edge so traffic  │
+   (personal/infra/     │      never reaches CloudFront at all;   │
+    cloudflare/)        │      AI-crawler block; rate limiting    │
                         └────────────────────────────────────────┘
 
                         ┌────────────────────────────────────────┐
@@ -37,8 +41,9 @@ needs a baseline, CloudWatch alarms can be muted. Layers split into **account-wi
                         │  D4. RDS service — $32                   │
                         │  D5. VPC anti-budget — $1 (NAT catch)    │
                         │  D6. ELB anti-budget — $1 (ALB catch)    │
-                        │  D7. Data transfer — $5                  │
+                        │  D7. Data transfer — $5 (NOT CloudFront)│
                         │  D17. ECS/Fargate — $25 (task size/count)│
+                        │  D18. CloudFront — $15 (CDN egress+reqs)│
                         ├────────────────────────────────────────┤
    per-app Budgets      │  D8. App-tag-filtered — $40 (in infra/) │
                         ├────────────────────────────────────────┤
@@ -119,8 +124,9 @@ AWS physically refuses to provision past a quota. Lower these once (free changes
 | `rds` | $32 | RDS resize, Multi-AZ enable |
 | `vpc` | $1 | NAT Gateway, VPC Endpoints, Transit Gateway |
 | `elb` | $1 | ALB / NLB / Classic ELB creation |
-| `data_transfer` | $5 | egress runaway — the #1 hidden cost |
+| `data_transfer` | $5 | egress on the `AWS Data Transfer` service line (EC2 / inter-region / S3). **Does NOT cover CloudFront** — see D18 |
 | `ecs` (**D17**) | $25 | Fargate task resize or task-count runaway — **the only guardrail on either** |
+| `cloudfront` (**D18**) | $15 | CDN egress + requests. Normal is **$0** (free tier), so any sustained spend here is abnormal by definition |
 
 ### D8. Per-app tag-filtered budget (each product's `infra/`)
 
@@ -150,6 +156,65 @@ Budgets carry coverage during that window.
 Lists unattached EBS, snapshots > 30 days, running EC2, unattached Elastic IPs ($3.60/mo each), NAT
 Gateways (expected: 0), load balancers (expected: 0), RDS instances (expected: 1 shared), log groups
 + retention, S3 buckets + sizes, and month-to-date spend. Acting on it is **not optional**.
+
+---
+
+## Post-mortem: August 2026 — the layers fired and it did not help
+
+The stated goal of this document is "never see an unexpected AWS bill again".
+In August 2026 we saw one: **$271.57** against an $18–63 baseline, ~₹26,000.
+Worth being precise about how, because the obvious lesson is the wrong one.
+
+**What happened.** Two abandoned `maxinterview.com` CloudFront distributions
+were crawled by bots — ~69M requests and 2,475 GB in a month. CloudFront came
+to $171.27, 63% of the bill. The active portfolio was irrelevant: authoxi and
+agitome together cost **$0.05**.
+
+**Why it stayed invisible for three weeks.** Three separate failures, only one
+of which was a missing guardrail:
+
+1. **Wrong service scope.** `data_transfer` (D7) filters on the `AWS Data
+   Transfer` service line. CloudFront bills under `Amazon CloudFront`. The
+   budget read **$0.00 ACTUAL, state OK** for the entire incident. The one
+   tripwire aimed at egress was pointed at the wrong wire. → fixed by **D18**.
+
+2. **The free-tier cliff.** CloudFront's always-free tier is 1 TB + 10M
+   requests/month. July already carried 645 GB / 23M requests and still billed
+   **$0.00** for transfer. There was no gradient to notice — cost appears only
+   after the cliff, and then all at once. ~3x the traffic produced ~8.5x the
+   bill. Any budget whose threshold assumes "normal + margin" is blind to this
+   shape; D18 is set against *zero*, not against normal.
+
+3. **Delivery, not detection.** This is the uncomfortable one. `monthly_cost`
+   (D1) was in **ALARM** at both 100% and 120%. `daily_anomaly` (D2) was in
+   **ALARM**. The Cost Anomaly Detector (D15) was live with a **$3** absolute
+   threshold on **daily** frequency. All of them emailed `nirlendu@gmail.com`,
+   for roughly three weeks. **Every detection layer worked exactly as
+   designed.** Nobody acted.
+
+**The lesson.** Adding a twelfth budget would have changed nothing. Layers 1
+and 2 were real gaps and are closed. Layer 3 is not a guardrail problem — it is
+that one Gmail inbox is not a control surface, and that a budget alert says
+"over budget" without naming a service, so even a read alert does not tell you
+where to look.
+
+**Still open** (deliberately recorded rather than quietly dropped):
+
+- Route budget + anomaly SNS to something with attention — SMS, Slack — or add
+  a **circuit breaker** that does not need a human: budget alarm → SNS →
+  Lambda that disables the offending distribution or flips Cloudflare to
+  "Under Attack". That is the only layer that works while asleep.
+- AWS **Budgets Reports** (console-only, no API/CLI) can send one consolidated
+  daily email across all budgets instead of N independent alarms. It reports
+  *which budget*, still not *which service*.
+- CloudFront access logging is **off**, so a repeat incident is not
+  diagnosable after the fact.
+
+**What was added in response:** D18 (CloudFront budget) and **P3** — the
+Cloudflare edge stack at `personal/infra/cloudflare/`. P3 matters more than
+D18: it is *prevention*, not detection. Traffic absorbed at Cloudflare's edge
+never reaches CloudFront and cannot bill, whereas D18 only tells you after the
+money is spent.
 
 ---
 

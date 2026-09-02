@@ -28,7 +28,13 @@ aliased providers in `versions.tf`.
 - `generated_*.tf` are Terraform's auto-generated configs — reviewed, plan-clean.
   Tidy/rename as desired.
 
-## Sibling stack
-`../terraform` = greenfield **shared-infra** (new VPC + Postgres + budgets + SNS
-+ SSM) for NEW apps (authoxi, etc.). Separate state, not yet applied. This
-`existing/` stack is only the legacy live footprint we kept.
+## Sibling stacks
+`../terraform` = greenfield **shared-infra** (VPC + Postgres + budgets + SNS +
+SSM) for NEW apps (authoxi, etc.). Separate state, **applied** (57 resources as
+of 2026-09-02 — the "not yet applied" note here was stale). This `existing/`
+stack is only the legacy live footprint we kept.
+
+`../cloudflare` = the **edge** stack (cache rules, rate limiting, bot
+protection). Relevant here because every distribution in `generated_cloudfront.tf`
+sits behind Cloudflare, so Cloudflare's cache — not CloudFront's — determines
+what these distributions actually cost.

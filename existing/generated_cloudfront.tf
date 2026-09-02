@@ -10,7 +10,7 @@ resource "aws_cloudfront_distribution" "cf_suprhealthe_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -152,7 +152,7 @@ resource "aws_cloudfront_distribution" "cf_maxinterview_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -169,7 +169,7 @@ resource "aws_cloudfront_distribution" "cf_maxinterview_com" {
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -294,7 +294,7 @@ resource "aws_cloudfront_distribution" "cf_contents_dailyapp_cc" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -305,7 +305,7 @@ resource "aws_cloudfront_distribution" "cf_contents_dailyapp_cc" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -354,7 +354,7 @@ resource "aws_cloudfront_distribution" "cf_superwomn_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -439,7 +439,7 @@ resource "aws_cloudfront_distribution" "cf_geniusjnr_com" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -496,7 +496,7 @@ resource "aws_cloudfront_distribution" "cf_admin_dailyapp_cc" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -513,7 +513,7 @@ resource "aws_cloudfront_distribution" "cf_admin_dailyapp_cc" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -638,7 +638,7 @@ resource "aws_cloudfront_distribution" "cf_contents_suprhealthe_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -706,7 +706,7 @@ resource "aws_cloudfront_distribution" "cf_indiabackpacks_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -723,7 +723,7 @@ resource "aws_cloudfront_distribution" "cf_indiabackpacks_com" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -780,7 +780,7 @@ resource "aws_cloudfront_distribution" "cf_e3uldez3t0x96v" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -791,7 +791,7 @@ resource "aws_cloudfront_distribution" "cf_e3uldez3t0x96v" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -840,7 +840,7 @@ resource "aws_cloudfront_distribution" "cf_epm6zgybnyp2e" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -851,7 +851,7 @@ resource "aws_cloudfront_distribution" "cf_epm6zgybnyp2e" {
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cache_policy_id            = null
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 86400
     field_level_encryption_id  = null
     max_ttl                    = 31536000
@@ -999,7 +999,7 @@ resource "aws_cloudfront_distribution" "cf_e1bg16f7olwno3" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1010,7 +1010,7 @@ resource "aws_cloudfront_distribution" "cf_e1bg16f7olwno3" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -1059,7 +1059,7 @@ resource "aws_cloudfront_distribution" "cf_dailyapp_cc" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1076,7 +1076,7 @@ resource "aws_cloudfront_distribution" "cf_dailyapp_cc" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -1133,7 +1133,7 @@ resource "aws_cloudfront_distribution" "cf_bettermoney_in" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1150,7 +1150,7 @@ resource "aws_cloudfront_distribution" "cf_bettermoney_in" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -1207,7 +1207,7 @@ resource "aws_cloudfront_distribution" "cf_code_maxinterview_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1275,7 +1275,7 @@ resource "aws_cloudfront_distribution" "cf_assets_maxinterview_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1286,7 +1286,7 @@ resource "aws_cloudfront_distribution" "cf_assets_maxinterview_com" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = null
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 86400
     field_level_encryption_id  = null
     max_ttl                    = 31536000
@@ -1344,7 +1344,7 @@ resource "aws_cloudfront_distribution" "cf_eox4udwxbjl7s" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1355,7 +1355,7 @@ resource "aws_cloudfront_distribution" "cf_eox4udwxbjl7s" {
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cache_policy_id            = null
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 86400
     field_level_encryption_id  = null
     max_ttl                    = 31536000
@@ -1413,7 +1413,7 @@ resource "aws_cloudfront_distribution" "cf_masterclub_app" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1430,7 +1430,7 @@ resource "aws_cloudfront_distribution" "cf_masterclub_app" {
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cache_policy_id            = null
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 86400
     field_level_encryption_id  = null
     max_ttl                    = 31536000
@@ -1496,7 +1496,7 @@ resource "aws_cloudfront_distribution" "cf_contents_maxinterview_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1586,7 +1586,7 @@ resource "aws_cloudfront_distribution" "cf_nirlendu_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1603,7 +1603,7 @@ resource "aws_cloudfront_distribution" "cf_nirlendu_com" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0
@@ -1660,7 +1660,7 @@ resource "aws_cloudfront_distribution" "cf_plusfoods_in" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100"
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1677,7 +1677,7 @@ resource "aws_cloudfront_distribution" "cf_plusfoods_in" {
     allowed_methods            = ["GET", "HEAD"]
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     cached_methods             = ["GET", "HEAD"]
-    compress                   = false
+    compress                   = true
     default_ttl                = 0
     field_level_encryption_id  = null
     max_ttl                    = 0

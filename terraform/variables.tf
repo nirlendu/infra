@@ -80,9 +80,15 @@ variable "elb_budget_usd" {
 }
 
 variable "data_transfer_budget_usd" {
-  description = "Cap on monthly data-transfer-out cost. Default $5 = ~55 GB egress beyond the 100 GB free tier."
+  description = "Cap on monthly data-transfer-out cost for the 'AWS Data Transfer' service line (EC2/inter-region/S3). Default $5 = ~55 GB egress beyond the 100 GB free tier. NOTE: this does NOT cover CloudFront egress — see cloudfront_budget_usd."
   type        = number
   default     = 5
+}
+
+variable "cloudfront_budget_usd" {
+  description = "Cap on monthly CloudFront spend (egress + requests). Default $15 ≈ 3x a normal month once the edge is caching properly. CloudFront bills under its own service line, NOT 'AWS Data Transfer' — a gap that let a $171 bot-traffic bill through undetected in Aug 2026."
+  type        = number
+  default     = 15
 }
 
 variable "ecs_budget_usd" {

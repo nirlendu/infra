@@ -135,6 +135,12 @@ resource "aws_budgets_budget" "elb" {
 # ──────────────────────────────────────────────────────────────────────────────
 # Data transfer cap — catches egress runaway. Default $5 ≈ 55 GB beyond the
 # 100 GB free tier. Egress is THE most common "silent bill" item.
+#
+# SCOPE WARNING: the "AWS Data Transfer" service line covers EC2 / inter-region
+# / S3 egress. It does NOT include CloudFront, which bills under "Amazon
+# CloudFront". In Aug 2026 this budget sat at $0.00 ACTUAL — state OK, no alert
+# — while CloudFront egress alone ran to $107. If you are looking for the CDN
+# tripwire, it is the `cloudfront` budget below, not this one.
 # ──────────────────────────────────────────────────────────────────────────────
 resource "aws_budgets_budget" "data_transfer" {
   provider     = aws.billing
@@ -205,6 +211,78 @@ resource "aws_budgets_budget" "ecs" {
     threshold                  = 100
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CloudFront cap — added 2026-09-02, after the incident this file was supposed
+# to have caught.
+#
+# WHAT HAPPENED: two abandoned maxinterview.com distributions were crawled by
+# bots. August billed $171.27 of CloudFront (63% of a $271.57 month) against a
+# $18-63 baseline. Nothing here fired on the service, because:
+#
+#   1. `data_transfer` filters "AWS Data Transfer" — CloudFront is NOT in that
+#      service line. That budget read $0.00 and stayed OK the whole time.
+#   2. The only alarm that did fire was the account-total `monthly_cost` one,
+#      which says "over budget" without naming a service. Useless for triage.
+#
+# WHY $15: CloudFront's always-free tier is 1 TB egress + 10M requests/month.
+# Normal months sit at $0 because everything fits inside it. That free tier is
+# also the trap — July already carried 645 GB / 23M requests and still billed
+# $0.00 for transfer, so there was no gradient to notice. Cost only appears
+# AFTER the cliff, and then all at once: ~3x the traffic produced ~8.5x the
+# bill. $15 is therefore not "20% over normal" — normal is zero. It is "we are
+# meaningfully past the free tier and something is wrong". 50% warns at $7.50.
+#
+# Do NOT raise this to accommodate a busy month without first checking whether
+# the traffic is human. It was not, last time.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# This budget was created by hand on 2026-09-02, mid-incident, before it was
+# codified here. Import rather than create: a create would fail outright
+# ("budget already exists") and a destroy/create would blind the tripwire on a
+# zone still being crawled. Safe to delete this block once applied.
+import {
+  to = aws_budgets_budget.cloudfront
+  id = "419105693501:shared-prod-cloudfront"
+}
+
+resource "aws_budgets_budget" "cloudfront" {
+  provider     = aws.billing
+  name         = "shared-${var.env}-cloudfront"
+  budget_type  = "COST"
+  limit_amount = tostring(var.cloudfront_budget_usd)
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name   = "Service"
+    values = ["Amazon CloudFront"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 50
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
     subscriber_email_addresses = [var.alert_email]
   }
 }
