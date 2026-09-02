@@ -17,9 +17,23 @@
 #   ../terraform  — greenfield shared-infra (VPC, RDS, budgets, SNS, SSM)
 #   ../existing   — the imported live-AWS replica (S3, CloudFront, ACM)
 #
-# AUTH: export CLOUDFLARE_API_TOKEN. Scope the token to:
-#   Zone:Read, Zone Settings:Edit, Cache Rules:Edit, Zone WAF:Edit,
-#   Bot Management:Edit, Cache Purge (for `make purge`)
+# AUTH: CLOUDFLARE_API_TOKEN, loaded from SSM rather than kept in a dotfile:
+#
+#   eval "$(make token)"
+#
+# The token lives at /shared/prod/cloudflare/api-token, declared in
+# ../terraform/06-cloudflare-token.tf. Terraform owns the parameter; the VALUE is
+# set out of band and never enters Terraform state — `terraform plan` refreshes,
+# and refreshing an aws_ssm_parameter reads the value back, so a token managed
+# the ordinary way would be readable by anything that can plan this stack.
+#
+# `make token` reads it as the `cloudflare-edge` role, which can reach that one
+# parameter and the `cloudflare/*` tfstate prefix and nothing else in the
+# account. Not AdministratorAccess, which is what this stack was applied as
+# before, and not `agent`, which is scoped to authoxi.
+#
+#   Scope the token itself to: Zone:Read, Zone Settings:Edit, Cache Rules:Edit,
+#   Zone WAF:Edit, Bot Management:Edit, Cache Purge (for `make purge`)
 #
 #   Zone WAF is what the Rulesets API needs for rate limiting — "Firewall
 #   Services" is a DIFFERENT permission and is NOT enough. Symptom: 403 on

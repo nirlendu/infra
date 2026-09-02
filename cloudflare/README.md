@@ -83,14 +83,39 @@ Those last two rows are open risks, not decisions.
 ## Auth
 
 ```bash
-export CLOUDFLARE_API_TOKEN=...   # never in tfvars, never committed
+eval "$(make token)"    # loads CLOUDFLARE_API_TOKEN from SSM for this shell
 ```
+
+The token lives at `/shared/prod/cloudflare/api-token`, declared in
+[`../terraform/06-cloudflare-token.tf`](../terraform/06-cloudflare-token.tf).
+It used to be a bare `export` in an operator's shell, which meant it existed on
+exactly one laptop, nothing recorded that it existed or when it was last
+rotated, and nothing unattended could purge a cache.
+
+**Terraform owns the parameter, not its value.** `terraform plan` refreshes, and
+refreshing an `aws_ssm_parameter` reads the value back — so a token managed the
+ordinary way would end up in this account's Terraform state and readable by
+anything that can plan the shared stack. `ignore_changes = [value]` means the
+placeholder is written once on create and never touched again; the real token
+goes in with `aws ssm put-parameter --overwrite` (the exact command is in the
+header of that file).
+
+`make token` reads it as **`cloudflare-edge`** — a role that can reach that one
+parameter and the `cloudflare/*` tfstate prefix, and nothing else in the
+account. Not `AdministratorAccess`, which is what this stack was applied as
+before. Not `agent`, which is an authoxi allowlist and cannot see `/shared/*`.
+If the parameter still holds the placeholder, `make token` says so and exits
+rather than exporting a value that would fail later as a confusing 403.
 
 Token scope: `Zone:Read`, `Zone Settings:Edit`, `Cache Rules:Edit`,
 `Zone WAF:Edit`, `Bot Management:Edit`, and `Cache Purge` if you want
 `make purge` to work (it is a separate permission — without it the purge call
 returns `Authentication error`, code 10000, which is misleading: the token is
 valid, it just cannot purge).
+
+A Cloudflare token is an **account-wide bearer credential** — it can repoint DNS
+for every domain here. That is why it gets a dedicated role rather than riding
+along with an existing one.
 
 **`Zone WAF` is the one people miss.** Rate limiting lives in the Rulesets API
 and needs `Zone WAF` — *"Firewall Services"* is a different permission and is
