@@ -628,6 +628,13 @@ resource "aws_cloudfront_distribution" "cf_trips_supertravelr_com" {
 
   # Owned by the cost circuit breaker, not by Terraform. See the carve-out
   # note in this file's header and ../terraform/09-circuit-breaker.tf.
+  #
+  # 2026-09-03: this distribution was disabled by the breaker four minutes after
+  # it was first deployed, triggered by cf-4xx-trips — an ERROR-RATE alarm on a
+  # pre-existing 20-54% 4xx condition, not a cost event. Restored by removing
+  # this block, applying, and putting it back, which is the reversal procedure
+  # recorded in COST-GUARDRAILS.md. The breaker now ignores anything that is not
+  # a volume metric.
   lifecycle {
     ignore_changes = [enabled]
   }

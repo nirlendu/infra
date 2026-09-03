@@ -117,6 +117,35 @@ def handler(event, context):
             continue
 
         alarm_name = message.get("AlarmName", "<unknown>")
+        metric_name = message.get("Trigger", {}).get("MetricName", "")
+
+        # ── ONLY VOLUME METRICS MAY PULL THE PLUG ────────────────────────────
+        #
+        # THIS GUARD EXISTS BECAUSE ITS ABSENCE CAUSED AN OUTAGE.
+        #
+        # On 2026-09-03 at 06:35Z, four minutes after this function was first
+        # deployed, it disabled trips.supertravelr.com — triggered by
+        # `cf-4xx-trips`, an alarm on 4xxErrorRate. That distribution had been
+        # sitting at 20-54% 4xx for at least five days: a pre-existing condition,
+        # not a cost event. The site went down for a problem that was not
+        # costing anything.
+        #
+        # The error-rate alarms are DIAGNOSTIC. A high 4xx rate is how a
+        # URL-space crawl announces itself, which makes it worth an email and a
+        # look — but 4xx responses are small and cheap, and an error rate says
+        # nothing about spend on its own. Only volume does.
+        #
+        # The original design attached every CloudFront alarm to one SNS topic
+        # and let this function act on anything that arrived. That conflated
+        # "worth telling a human" with "worth taking a site offline", and the two
+        # are not the same set.
+        if metric_name not in ("Requests", "BytesDownloaded"):
+            log.info(
+                "Ignoring alarm %s (metric %s): not a volume metric, so not a cost signal",
+                alarm_name,
+                metric_name,
+            )
+            continue
 
         if distribution_id not in allowed:
             # The important log line. If a live product ever trips an alarm
