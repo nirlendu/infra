@@ -49,18 +49,53 @@ log.setLevel(logging.INFO)
 
 cloudfront = boto3.client("cloudfront")
 sns = boto3.client("sns")
+ssm = boto3.client("ssm")
 
-ALLOWED = {
+ARMED = os.environ.get("BREAKER_ARMED", "false").lower() == "true"
+NOTIFY_TOPIC = os.environ.get("BREAKER_NOTIFY_TOPIC_ARN", "")
+ALLOWLIST_PARAM = os.environ.get("BREAKER_ALLOWLIST_PARAM", "")
+
+# Static fallback, from the Lambda's environment. Used only if SSM is
+# unreachable — see _allowlist().
+ALLOWED_FALLBACK = {
     d.strip()
     for d in os.environ.get("BREAKER_ALLOWED_DISTRIBUTIONS", "").split(",")
     if d.strip()
 }
-ARMED = os.environ.get("BREAKER_ARMED", "false").lower() == "true"
-NOTIFY_TOPIC = os.environ.get("BREAKER_NOTIFY_TOPIC_ARN", "")
+
+
+def _allowlist():
+    """The distributions this breaker may disable.
+
+    Read from SSM at INVOCATION rather than baked in at deploy, because the
+    authoritative list is derived from the CloudFront resources themselves in
+    existing/cloudfront-alarms.tf. A distribution that is replaced gets a new
+    ID; the alarms follow it automatically because they reference the resource,
+    and this makes the breaker follow it too.
+
+    Without this the breaker would refuse to act on exactly the distribution
+    whose alarm just fired, log "not in the allowlist", and look healthy.
+    Failing safe is not the same as working.
+
+    Falls back to the environment if SSM cannot be read, so an SSM outage
+    degrades the breaker to its last-deployed list rather than disarming it.
+    """
+    if not ALLOWLIST_PARAM:
+        return ALLOWED_FALLBACK
+    try:
+        raw = ssm.get_parameter(Name=ALLOWLIST_PARAM)["Parameter"]["Value"]
+        found = {d.strip() for d in raw.split(",") if d.strip()}
+        if found:
+            return found
+        log.warning("Allowlist parameter %s is empty; using env fallback", ALLOWLIST_PARAM)
+    except Exception:  # noqa: BLE001 - never let a lookup failure disarm the breaker
+        log.exception("Could not read %s; using env fallback", ALLOWLIST_PARAM)
+    return ALLOWED_FALLBACK
 
 
 def handler(event, context):
     """Entry point. One SNS event may carry several records."""
+    allowed = _allowlist()
     for record in event.get("Records", []):
         try:
             message = json.loads(record["Sns"]["Message"])
@@ -83,7 +118,7 @@ def handler(event, context):
 
         alarm_name = message.get("AlarmName", "<unknown>")
 
-        if distribution_id not in ALLOWED:
+        if distribution_id not in allowed:
             # The important log line. If a live product ever trips an alarm
             # wired to this topic, this is the record that it was seen and
             # deliberately not acted on.

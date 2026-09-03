@@ -268,6 +268,47 @@ variable "s3_requests_limit" {
   default     = 3000000
 }
 
+# ───── Account-wide CloudFront alarms (08-cloudfront-account-alarms.tf) ─────
+#
+# These are DAILY RUN RATES derived from the monthly free tier, not guesses at
+# normal. A day above the threshold means the month ends up billable — which is
+# a fact about the cliff rather than an opinion about traffic.
+
+variable "cloudfront_free_tier_requests_per_day" {
+  description = <<-EOT
+    CloudFront's 10M/month always-free request tier, expressed as a daily run
+    rate (10,000,000 / 30 = 333,333).
+
+    Raising this does not buy quiet — it buys a later warning. The number is
+    arithmetic, not preference.
+  EOT
+  type        = number
+  default     = 333333
+}
+
+variable "cloudfront_free_tier_bytes_per_day" {
+  description = <<-EOT
+    CloudFront's 1 TB/month always-free egress tier as a daily run rate
+    (1,024 GiB / 30 ≈ 34 GiB), in bytes.
+  EOT
+  type        = number
+  default     = 36596519417 # 34 GiB
+}
+
+variable "s3_direct_egress_gb_per_day" {
+  description = <<-EOT
+    Daily S3 egress that suggests the website endpoints are being hit directly,
+    bypassing both Cloudflare and CloudFront.
+
+    S3's free egress allowance is 100 GB/month, and its overage is $0.09/GB —
+    MORE expensive than CloudFront. Normal for this account is deploy traffic,
+    which is fractions of a GB. 5 GB/day is ~150 GB/month: past the free tier
+    and unambiguously not a deploy.
+  EOT
+  type        = number
+  default     = 5
+}
+
 # ───── Circuit breaker (09-circuit-breaker.tf) ─────
 
 variable "breaker_armed" {

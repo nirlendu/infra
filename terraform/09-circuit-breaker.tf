@@ -112,9 +112,20 @@ resource "aws_iam_role_policy" "circuit_breaker" {
         Action   = ["sns:Publish"]
         Resource = [aws_sns_topic.budget_alerts.arn]
       },
+      {
+        Sid    = "ReadTheAllowlist"
+        Effect = "Allow"
+        # ONE parameter, not a prefix. The allowlist is published by ../existing
+        # from the CloudFront resources themselves; see the comment on
+        # BREAKER_ALLOWLIST_PARAM below for why it is read at invocation.
+        Action   = ["ssm:GetParameter"]
+        Resource = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.breaker.account_id}:parameter/shared/prod/breaker/allowed-distributions"]
+      },
     ]
   })
 }
+
+data "aws_caller_identity" "breaker" {}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # The function.
@@ -143,8 +154,21 @@ resource "aws_lambda_function" "circuit_breaker" {
     variables = {
       BREAKER_ARMED = tostring(var.breaker_armed)
 
-      # THE SAFETY PROPERTY. Only these distributions can ever be disabled.
-      # The three live products are deliberately absent — see variables.tf.
+      # THE SAFETY PROPERTY, and where it is defined.
+      #
+      # The authoritative allowlist is published to SSM by ../existing, derived
+      # from the same CloudFront resource references its alarms use — so there is
+      # exactly one place the breakable set is defined, and a distribution that
+      # is REPLACED (new ID) stays covered without this stack being applied again.
+      #
+      # Read at invocation, not baked in here. A hardcoded list in a second stack
+      # goes stale silently: the breaker would refuse to act on the distribution
+      # whose alarm just fired, log "not in the allowlist", and look healthy.
+      BREAKER_ALLOWLIST_PARAM = "/shared/prod/breaker/allowed-distributions"
+
+      # Static fallback, used only if SSM cannot be read. An SSM outage should
+      # degrade the breaker to its last-known list, never disarm it. The three
+      # live products are absent from both — see variables.tf.
       BREAKER_ALLOWED_DISTRIBUTIONS = join(",", var.breaker_allowed_distributions)
 
       BREAKER_NOTIFY_TOPIC_ARN = aws_sns_topic.budget_alerts.arn

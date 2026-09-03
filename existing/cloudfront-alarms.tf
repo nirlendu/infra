@@ -51,6 +51,45 @@ locals {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
+# The circuit breaker's allowlist, published from the resources themselves.
+#
+# WHY THIS IS NOT JUST A LIST IN THE LAMBDA'S ENVIRONMENT.
+#
+# The breaker (../terraform/09-circuit-breaker.tf) may only disable a
+# distribution named in its allowlist — that is the property that lets it be
+# armed by default without being able to touch production. But the allowlist
+# started life as hardcoded IDs in a tfvar, which is a SECOND enumeration of the
+# same five distributions, in a different stack, that nothing keeps in step.
+#
+# A CloudFront distribution gets a new ID when it is replaced. The moment that
+# happens, the alarms here follow it automatically (they reference the resource),
+# and the breaker's hardcoded list does not. The breaker then refuses to act on
+# the very distribution the alarm just fired for, logs "not in the allowlist",
+# and looks like it is working.
+#
+# Failing safe is not the same as working. Publishing the list from the same
+# resource references the alarms use means there is exactly ONE place the set of
+# breakable distributions is defined, and a replacement updates it on the next
+# apply of this stack.
+#
+# The Lambda reads this at INVOCATION, not at deploy: the breaker picks up a new
+# ID without needing ../terraform to be applied again.
+#
+# StringList rather than String: this is a list, and the type says so.
+resource "aws_ssm_parameter" "breaker_allowlist" {
+  name  = "/shared/prod/breaker/allowed-distributions"
+  type  = "StringList"
+  value = join(",", values(local.watched_distributions))
+
+  description = "CloudFront distribution IDs the cost circuit breaker may disable. Derived from existing/cloudfront-alarms.tf. The three live products are absent by construction."
+
+  tags = {
+    Project   = "shared"
+    ManagedBy = "terraform"
+  }
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Request volume.
 #
 # THRESHOLD REASONING: 300,000 requests in an hour, sustained for two hours.

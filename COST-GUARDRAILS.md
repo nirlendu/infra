@@ -126,7 +126,52 @@ AWS physically refuses to provision past a quota. Lower these once (free changes
 | `elb` | $1 | ALB / NLB / Classic ELB creation |
 | `data_transfer` | $5 | egress on the `AWS Data Transfer` service line (EC2 / inter-region / S3). **Does NOT cover CloudFront** — see D18 |
 | `ecs` (**D17**) | $25 | Fargate task resize or task-count runaway — **the only guardrail on either** |
-| `cloudfront` (**D18**) | $15 | CDN egress + requests. Normal is **$0** (free tier), so any sustained spend here is abnormal by definition |
+| `cloudfront` (**D18**) | $5 | CDN egress + requests. Normal is **$0** (free tier), so any sustained spend here is abnormal by definition. Lowered from $15 on 2026-09-03 — see below |
+
+### D19–D21. USAGE budgets — the only layer that sees a free-tier cliff coming
+
+Every budget above measures **dollars**, and dollars are blind below a free
+tier. July 2026 carried 645 GB and 23M CloudFront requests and billed **$0.00**,
+so `cloudfront` read $0.00 ACTUAL / state OK for the whole month while the crawl
+that produced August's $172 was already three weeks old. Nothing was broken.
+A cost budget cannot warn about a cliff, because on the near side the cost is
+zero and on the far side it is all of it at once.
+
+A `USAGE` budget accrues from the first byte. These are set at **half the free
+tier**, alerting at 40% — so the first email lands at roughly 20% of free-tier
+consumption, about four days into an August-rate crawl rather than three weeks.
+
+| Budget | Limit | First alert | Catches |
+|---|---|---|---|
+| `cf-bytes-usage` (**D19**) | 500 GB | 200 GB | egress ramp, weeks before a dollar |
+| `cf-requests-usage` (**D20**) | 5M requests | 2M | the *leading* indicator — August crossed 10M requests on the 9th but 1 TB only on the 20th |
+| `s3-requests-usage` (**D21**) | 3M requests | 1.2M | the 11.8M GETs that were half of August's S3 bill |
+
+### D22–D24. Account-wide alarms that cannot go stale
+
+D9–D21 are either account totals or hand-written lists. The per-distribution
+alarms name the resource — which is what a budget can never do — but they cover
+five distributions of thirty-five, and that list is guaranteed to rot as
+distributions are replaced or added.
+
+These use CloudWatch `SEARCH()`, which resolves its matching series at
+**evaluation** time. There is no list to fall out of date: a distribution
+created five minutes ago is inside the alarm automatically.
+
+| Alarm | Threshold | Why that number |
+|---|---|---|
+| `cf-account-requests` (**D22**) | 333,333/day | the 10M/month free tier **as a daily run rate** — a day above it means the month is billable |
+| `cf-account-bytes` (**D23**) | ~34 GiB/day | the 1 TB/month free tier as a daily run rate |
+| `s3-direct-egress` (**D24**) | 5 GB/day | **the bypass hole.** 19 of 35 distributions have `s3-website` origins whose endpoints answer HTTP 200 directly, skipping Cloudflare *and* CloudFront. S3 egress is $0.09/GB with 100 GB free — a more expensive way to lose the same money, and nothing else here would see it |
+
+> **D22 and D23 are expected to be in ALARM on first apply.** The account is
+> running ~2M requests/day against a 333k threshold. That is the alarm correctly
+> reporting a live incident, not a mis-calibration. **Them going green is the
+> measurement** that the Cloudflare edge work succeeded.
+>
+> D24 may sit in `INSUFFICIENT_DATA`: S3 request metrics are not enabled per
+> bucket by default and cost $0.20/million to collect. The alarm is declared
+> anyway so the gap is visible in code rather than only in prose.
 
 ### D8. Per-app tag-filtered budget (each product's `infra/`)
 
@@ -215,6 +260,80 @@ Cloudflare edge stack at `personal/infra/cloudflare/`. P3 matters more than
 D18: it is *prevention*, not detection. Traffic absorbed at Cloudflare's edge
 never reaches CloudFront and cannot bill, whereas D18 only tells you after the
 money is spent.
+
+---
+
+## Reversal — how to undo every control here
+
+A control you are afraid to turn off is a control you will hesitate to turn on.
+Every change in the 2026-09-03 set is reversible, and this is the exact
+procedure for each. **Nothing below requires a console click or a CLI mutation.**
+
+| Change | Reversal | Notes |
+|---|---|---|
+| Tiered caching | set `value = "off"` in `cloudflare/tiered-cache.tf` | See the caveat below — these are settings, not objects |
+| Cache key / 4xx TTL | delete the `cache_key` and `status_code_ttl` blocks | Ruleset updates **in place**; no window without a rule |
+| Zone settings | set `value` back (`always_online` → `"off"`, `security_level` → `"medium"`) | Same caveat |
+| WAF rules | set `enabled = false`, or delete the ruleset | The escalation rule already ships disabled |
+| `PriceClass_100` | set back to `PriceClass_All` | In-place update, no distribution replacement |
+| S3 lifecycle | delete the resource | Removes the rule; **no object is ever deleted by it** |
+| Usage budgets / alarms | delete the resource | Pure observation, nothing depends on them |
+| Circuit breaker | `breaker_armed = false` (observe-only), or delete the Lambda | Observe-only still logs and notifies |
+| `ignore_changes = [enabled]` | remove `enabled` from the lifecycle block | Terraform resumes owning the field |
+| IAM phase 1 | delete `iam-legacy.tf` | Purely additive; removes only what it added |
+| IAM phase 2 | re-declare the two attachments and the group membership | The users are never deleted, so nothing is unrecoverable |
+
+**The one caveat, and it is a real one.** `cloudflare_argo_tiered_caching`,
+`cloudflare_tiered_cache` and `cloudflare_zone_setting` are zone *settings*, not
+creatable objects, and `terraform plan` says so:
+
+> This resource cannot be destroyed from Terraform. If you create this resource,
+> it will be present in the API until manually deleted.
+
+So `terraform destroy` does **not** turn these off — it forgets them while they
+stay on. The reversal is to set `value = "off"` and apply, which does work. This
+matters because "destroy the resource" is the reflex, and here the reflex leaves
+the setting live.
+
+**Nothing in this set is irreversible.** No distribution is disabled, no object
+is expired, no user or key is deleted, and no bucket policy is changed.
+
+---
+
+## Resilience — what happens when something is redeployed
+
+A guardrail that watches a resource by ID stops watching the moment that
+resource is replaced, and gives no signal that it has stopped. That is the same
+failure as the `data_transfer` budget pointed at the wrong service line: green,
+and measuring nothing. These are the enumerations in this account and what each
+does when the estate moves under it.
+
+| Layer | Binds to | On replacement | On a NEW resource |
+|---|---|---|---|
+| Per-distribution alarms (`existing/`) | Terraform **resource reference** | follows automatically | **not covered** |
+| Breaker allowlist | SSM, published from the same references | follows on next apply of `existing/` | not covered (by design — safe) |
+| Account-wide alarms (`08-…`) | `SEARCH()`, resolved at **evaluation** time | follows | **covered automatically** |
+| CloudFront usage budgets | 10 hardcoded region prefixes | n/a | a **new AWS region is a gap** |
+| S3 request usage budget | `UsageTypeGroup` | n/a | covered |
+| Per-app budgets | `Project` tag | follows | covered **if tagged** |
+| `monthly_cost`, `daily_anomaly` | whole account | follows | covered |
+
+**The design rule that follows:** the enumerated layers exist to *name the
+resource*, which is the thing a budget can never do and the thing you need at
+3am. The `SEARCH()` layer exists so that naming is never the only coverage. Add
+to the enumerations when you learn something new; do not rely on them being
+complete.
+
+**Two live gaps, recorded rather than papered over:**
+
+- A **new AWS billing region** falls outside the CloudFront usage budgets'
+  region list. The account-wide `SEARCH()` alarms catch it, which is why they
+  exist alongside rather than instead.
+- **Untagged spend.** In September the `Project` tag resolved for `authoxi`,
+  `agitome`, `uni` and `shared-infra` — but 94% of spend was untagged, because
+  it is the legacy estate and cost-allocation tags are not retroactive (they
+  were activated 2026-09-02). Per-app budgets therefore cover the products and
+  not the legacy footprint; the account-wide layers cover the rest.
 
 ---
 
