@@ -1,5 +1,49 @@
 # __generated__ by Terraform
 # Please review these resources and move them into your main configuration files.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# HAND EDITS SINCE GENERATION — do not regenerate over these.
+#
+# 2026-09-03  price_class: PriceClass_All -> PriceClass_100 on six distributions
+#             (supertravelr, visa.supertravelr, trips.supertravelr, geniusjnr,
+#             contents.geniusjnr, practise.geniusjnr).
+#
+#   PriceClass_All buys CloudFront's most expensive edge locations — South
+#   America, Australia, and the rest of the premium tiers. Every distribution
+#   created by the app stacks already pins PriceClass_100; these six predate
+#   that rule and were the only ones left on the default.
+#
+#   It is invisible to real users because Cloudflare is in front of all six:
+#   the visitor terminates at a Cloudflare PoP regardless, and CloudFront is
+#   only ever the origin behind it. The edge location CloudFront would have
+#   used is not part of anyone's experience.
+#
+#   August's bill contained $2.08 of South-Africa requests and $0.12 of Japan
+#   at premium rates, all of it crawler traffic with no user behind it.
+#
+# 2026-09-03  lifecycle { ignore_changes = [enabled] } on the five distributions
+#             the cost circuit breaker is allowed to disable.
+#
+#   THIS IS A DELIBERATE, NARROW CARVE-OUT FROM "EVERYTHING THROUGH TERRAFORM".
+#
+#   ../terraform/09-circuit-breaker.tf runs a Lambda that sets Enabled=false on
+#   one of these distributions when its CloudWatch alarm fires — the only cost
+#   control in this account that acts without a human reading an email, and the
+#   reason the abandoned distributions can safely be left running while the
+#   Cloudflare edge fix is measured.
+#
+#   Without ignore_changes, the next `terraform apply` would set Enabled back to
+#   true — re-opening the tap in the middle of the incident the breaker just
+#   closed, and doing it silently.
+#
+#   The shape is the same as the SSM secret-value exception already used in this
+#   workspace: TERRAFORM OWNS THE RESOURCE, the breaker owns ONE FIELD. Nothing
+#   else about these distributions is exempt.
+#
+#   TO RE-ENABLE A TRIPPED DISTRIBUTION: work out why it tripped first. Then
+#   remove `enabled` from that resource's ignore_changes, apply, and put it back.
+#   The friction is intentional — coming back up should be a decision.
+# ─────────────────────────────────────────────────────────────────────────────
 
 # __generated__ by Terraform from "E3EUOC1VMPIE8D"
 resource "aws_cloudfront_distribution" "cf_suprhealthe_com" {
@@ -71,6 +115,12 @@ resource "aws_cloudfront_distribution" "cf_suprhealthe_com" {
 
 # __generated__ by Terraform from "E3DREC6GKO0ZHN"
 resource "aws_cloudfront_distribution" "cf_supertravelr_com" {
+
+  # Owned by the cost circuit breaker, not by Terraform. See the carve-out
+  # note in this file's header and ../terraform/09-circuit-breaker.tf.
+  lifecycle {
+    ignore_changes = [enabled]
+  }
   aliases                         = ["*.supertravelr.com", "supertravelr.com"]
   comment                         = null
   continuous_deployment_policy_id = null
@@ -78,7 +128,7 @@ resource "aws_cloudfront_distribution" "cf_supertravelr_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100" # was PriceClass_All — see file header
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -145,6 +195,12 @@ resource "aws_cloudfront_distribution" "cf_supertravelr_com" {
 
 # __generated__ by Terraform from "EGE1BE7J30U8P"
 resource "aws_cloudfront_distribution" "cf_maxinterview_com" {
+
+  # Owned by the cost circuit breaker, not by Terraform. See the carve-out
+  # note in this file's header and ../terraform/09-circuit-breaker.tf.
+  lifecycle {
+    ignore_changes = [enabled]
+  }
   aliases                         = ["*.maxinterview.com", "maxinterview.com"]
   comment                         = null
   continuous_deployment_policy_id = null
@@ -226,7 +282,7 @@ resource "aws_cloudfront_distribution" "cf_visa_supertravelr_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100" # was PriceClass_All — see file header
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -415,6 +471,12 @@ resource "aws_cloudfront_distribution" "cf_superwomn_com" {
 
 # __generated__ by Terraform from "E9834VVALEIQC"
 resource "aws_cloudfront_distribution" "cf_geniusjnr_com" {
+
+  # Owned by the cost circuit breaker, not by Terraform. See the carve-out
+  # note in this file's header and ../terraform/09-circuit-breaker.tf.
+  lifecycle {
+    ignore_changes = [enabled]
+  }
   aliases                         = ["*.geniusjnr.com", "geniusjnr.com"]
   comment                         = null
   continuous_deployment_policy_id = null
@@ -422,7 +484,7 @@ resource "aws_cloudfront_distribution" "cf_geniusjnr_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100" # was PriceClass_All — see file header
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -563,6 +625,19 @@ resource "aws_cloudfront_distribution" "cf_admin_dailyapp_cc" {
 
 # __generated__ by Terraform from "E24BJHZNQCQO33"
 resource "aws_cloudfront_distribution" "cf_trips_supertravelr_com" {
+
+  # Owned by the cost circuit breaker, not by Terraform. See the carve-out
+  # note in this file's header and ../terraform/09-circuit-breaker.tf.
+  #
+  # 2026-09-03: this distribution was disabled by the breaker four minutes after
+  # it was first deployed, triggered by cf-4xx-trips — an ERROR-RATE alarm on a
+  # pre-existing 20-54% 4xx condition, not a cost event. Restored by removing
+  # this block, applying, and putting it back, which is the reversal procedure
+  # recorded in COST-GUARDRAILS.md. The breaker now ignores anything that is not
+  # a volume metric.
+  lifecycle {
+    ignore_changes = [enabled]
+  }
   aliases                         = ["trips.supertravelr.com"]
   comment                         = null
   continuous_deployment_policy_id = null
@@ -570,7 +645,7 @@ resource "aws_cloudfront_distribution" "cf_trips_supertravelr_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100" # was PriceClass_All — see file header
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -909,7 +984,7 @@ resource "aws_cloudfront_distribution" "cf_contents_geniusjnr_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100" # was PriceClass_All — see file header
   retain_on_delete                = false
   staging                         = false
   tags                            = {}
@@ -1200,6 +1275,12 @@ resource "aws_cloudfront_distribution" "cf_bettermoney_in" {
 
 # __generated__ by Terraform from "ETX7NAHEKHMR"
 resource "aws_cloudfront_distribution" "cf_code_maxinterview_com" {
+
+  # Owned by the cost circuit breaker, not by Terraform. See the carve-out
+  # note in this file's header and ../terraform/09-circuit-breaker.tf.
+  lifecycle {
+    ignore_changes = [enabled]
+  }
   aliases                         = ["code.maxinterview.com"]
   comment                         = null
   continuous_deployment_policy_id = null
@@ -1734,7 +1815,7 @@ resource "aws_cloudfront_distribution" "cf_practise_geniusjnr_com" {
   enabled                         = true
   http_version                    = "http2"
   is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_All"
+  price_class                     = "PriceClass_100" # was PriceClass_All — see file header
   retain_on_delete                = false
   staging                         = false
   tags                            = {}

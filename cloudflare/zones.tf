@@ -53,6 +53,44 @@ locals {
     }
   }
 
+  # Zones that get TOPOLOGY ONLY — tiered caching, and nothing else.
+  #
+  # These are aeternm product zones whose CACHING belongs to their own app
+  # terraform, for the reason stated above: their origins are API Gateway and a
+  # cache-everything rule on them would serve one tenant's response to another.
+  # That separation is right and this does not weaken it — nothing here creates
+  # a cache rule, changes a TTL, or makes anything cacheable that was not
+  # already.
+  #
+  # Tiered caching is a different kind of setting. It does not decide WHAT is
+  # cacheable; it decides how many of Cloudflare's ~330 data centres are
+  # allowed to ask the origin for it. On a zone with no cache rules the answer
+  # is "the same objects as before, fetched from fewer places", which is safe
+  # on any origin including API Gateway.
+  #
+  # They live here rather than in each app stack because a topology setting
+  # that is set in five places is a topology setting that drifts. See the
+  # tiered-cache.tf header for the full argument.
+  topology_only_zones = {
+    authoxi = {
+      zone_id = "1494bb422214793c077470d42ccc169b"
+      note    = "aeternm product. Caching owned by aeternm/authoxi/infra/terraform/cdn.tf."
+    }
+    agitome = {
+      zone_id = "8156567dac29ef1ce198d48eb6ac243b"
+      note    = "aeternm product. Caching owned by aeternm/agitome/infra/terraform/cdn.tf."
+    }
+  }
+
+  # Every zone this stack touches at all. Tiered caching is the only thing
+  # applied uniformly across the whole set — everything else is deliberately
+  # scoped by how the zone is used.
+  all_zones = merge(
+    { for k, v in local.archived_zones : k => v.zone_id },
+    { for k, v in local.active_zones : k => v.zone_id },
+    { for k, v in local.topology_only_zones : k => v.zone_id },
+  )
+
   # Zones that get a rate-limit rule. Only where request VOLUME is the risk;
   # a rule on a zone nobody crawls is just a rule to maintain.
   ratelimit_zones = {

@@ -18,6 +18,13 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    # Packages the circuit-breaker Lambda from source at plan time, so the
+    # function's code is reviewable Python in the repo rather than a committed
+    # zip. See 09-circuit-breaker.tf.
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 }
 

@@ -55,10 +55,57 @@ resource "cloudflare_ruleset" "cache_archived" {
     enabled     = true
     action_parameters = {
       cache = true
+
+      # ── THE CACHE KEY: ignore the query string entirely ──────────────────
+      #
+      # Cloudflare's default cache key is host + path + FULL query string, so
+      # `/` and `/?x=1` are two different objects. Measured live on
+      # maxinterview.com, 2026-09-03, with the rule above already in force:
+      #
+      #   GET /                cf-cache-status: HIT
+      #   GET /?x=28841        cf-cache-status: MISS   ← origin fetch
+      #   GET /?x=28841 again  cf-cache-status: HIT
+      #
+      # So a crawler appending any varying parameter defeats this entire file
+      # one character at a time, no matter how long the TTL is. These are
+      # static S3 origins: not one of them varies its response on a query
+      # string, so nothing is lost by dropping it from the key.
+      #
+      # `exclude = { all = true }` is Cloudflare's "Ignore query string", which
+      # IS available below Enterprise. Selective exclude LISTS are the
+      # Enterprise feature — do not be tempted to name parameters here, it will
+      # be rejected at apply with an entitlement error, the same way
+      # rate-limits.tf documents for `period`.
+      cache_key = {
+        custom_key = {
+          query_string = {
+            exclude = { all = true }
+          }
+        }
+      }
+
       edge_ttl = {
         mode    = "override_origin"
         default = 86400 # 24h. Origin sends no Cache-Control, so override is required.
+
+        # ── CACHE THE 404s TOO ───────────────────────────────────────────────
+        #
+        # A deep crawl of paths that do not exist is still a crawl the origin
+        # pays for. Measured on the same probe run:
+        #
+        #   GET /nonexistent-9931/page   cf-cache-status: MISS
+        #                                x-cache: Error from cloudfront
+        #
+        # Without this, every miss on a dead path is a fresh round trip to
+        # CloudFront to be told "no" again. One hour rather than 24: a 404 is
+        # the one response that might legitimately stop being true, and an
+        # abandoned site is not worth a day of stale absence if it ever ships.
+        status_code_ttl = [{
+          status_code_range = { from = 400, to = 499 }
+          value             = 3600
+        }]
       }
+
       browser_ttl = {
         mode    = "override_origin"
         default = 14400 # 4h
@@ -113,10 +160,41 @@ resource "cloudflare_ruleset" "cache_active" {
       enabled     = true
       action_parameters = {
         cache = true
+
+        # Same reasoning as the archived rule above, and the same measurement:
+        # geniusjnr.com and supertravelr.com are static S3 website origins that
+        # do not vary on a query string either. This is what closes the gap
+        # between "97% of requests hit origin for nothing" and an edge that
+        # actually absorbs a crawl.
+        #
+        # The one thing to watch: if either zone ever grows a real page that
+        # reads a query parameter — a search page, a paginated list, a UTM
+        # landing variant that renders differently — it will be served the same
+        # cached response for every parameter value. Add a bypass rule for that
+        # path ABOVE this one, the way /api/ is handled, rather than removing
+        # this.
+        cache_key = {
+          custom_key = {
+            query_string = {
+              exclude = { all = true }
+            }
+          }
+        }
+
         edge_ttl = {
           mode    = "override_origin"
           default = 300
+
+          # 5 minutes on 4xx, not the hour used on archived zones. These are
+          # live products: a 404 here is much more likely to be a route that is
+          # about to exist than a permanently dead path, and a deploy should not
+          # be shadowed by an hour of cached absence.
+          status_code_ttl = [{
+            status_code_range = { from = 400, to = 499 }
+            value             = 300
+          }]
         }
+
         browser_ttl = {
           mode    = "override_origin"
           default = 300
