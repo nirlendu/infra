@@ -121,9 +121,27 @@ variable "data_transfer_budget_usd" {
 }
 
 variable "cloudfront_budget_usd" {
-  description = "Cap on monthly CloudFront spend (egress + requests). Default $15 ≈ 3x a normal month once the edge is caching properly. CloudFront bills under its own service line, NOT 'AWS Data Transfer' — a gap that let a $171 bot-traffic bill through undetected in Aug 2026."
+  description = <<-EOT
+    Cap on monthly CloudFront spend (egress + requests).
+
+    CloudFront bills under its own service line, NOT 'AWS Data Transfer' — the
+    gap that let a $171 bot-traffic bill through undetected in Aug 2026.
+
+    LOWERED 15 -> 5 on 2026-09-03. The old $15 was set as "3x a normal month",
+    which is the right way to size a budget for a service you expect to spend
+    money on. CloudFront is not one: correct spend here is $0, because the
+    always-free tier (1 TB + 10M requests) is far above anything this account
+    legitimately serves — the three live products moved 0.2 GB in August
+    between them. A threshold set against normal cannot distinguish "quiet" from
+    "about to fall off the free-tier cliff"; a threshold set against ZERO can.
+
+    This is now the SECOND line of defence rather than the first. The usage
+    budgets in 07-usage-budgets.tf fire on GB and requests while cost is still
+    $0.00, which is weeks earlier. By the time this one fires, the cliff has
+    already been crossed and the question is how far.
+  EOT
   type        = number
-  default     = 15
+  default     = 5
 }
 
 variable "ecs_budget_usd" {
@@ -199,6 +217,118 @@ variable "rds_backup_retention_days" {
   EOT
   type        = number
   default     = 14
+}
+
+# ───── Usage budgets (07-usage-budgets.tf) ─────
+#
+# These are USAGE limits, not dollars. They exist because dollars are blind
+# below a free tier — see the header of 07-usage-budgets.tf for the July 2026
+# case where every cost budget correctly read $0.00 for a month while the crawl
+# that produced August's $172 was already running.
+#
+# Set to HALF the free tier so the first notification (at 40%) lands at roughly
+# 20% of free-tier consumption.
+
+variable "cloudfront_egress_gb_limit" {
+  description = <<-EOT
+    CloudFront egress budget in GB. Default 500 = half the 1,024 GB always-free
+    tier, so the 40% notification fires at ~200 GB — about four days into a crawl
+    at August 2026 rates, rather than the three weeks it actually took.
+
+    Correct steady-state value for this account is single-digit GB: the three
+    live products together moved 0.2 GB in August. Do not raise this to
+    accommodate traffic without first establishing that the traffic is wanted.
+  EOT
+  type        = number
+  default     = 500
+}
+
+variable "cloudfront_requests_limit" {
+  description = <<-EOT
+    CloudFront request budget. Default 5,000,000 = half the 10M always-free
+    tier.
+
+    This is the more sensitive of the two CloudFront tripwires for this account:
+    August crossed 10M requests around the 9th but did not cross 1 TB of egress
+    until the 20th. Requests lead, bytes follow.
+  EOT
+  type        = number
+  default     = 5000000
+}
+
+variable "s3_requests_limit" {
+  description = <<-EOT
+    S3 standard API request budget. Default 3,000,000.
+
+    August recorded roughly 11.8M GETs in ap-south-1 ($4.74 of a $11.16 S3
+    bill) — the crawl reaching the buckets behind CloudFront. Normal for this
+    account is deploys and nothing else, which is thousands, not millions.
+  EOT
+  type        = number
+  default     = 3000000
+}
+
+# ───── Circuit breaker (09-circuit-breaker.tf) ─────
+
+variable "breaker_armed" {
+  description = <<-EOT
+    Whether the cost circuit breaker actually disables a distribution, or only
+    logs what it would have done.
+
+    Default TRUE, deliberately. An unarmed breaker is a breaker that will be
+    found unarmed during the incident it was built for — and the containment
+    that makes arming safe is the allowlist below, not this flag. Set to false
+    only to observe the wiring on a first apply, and set it back.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "breaker_allowed_distributions" {
+  description = <<-EOT
+    The ONLY CloudFront distributions the breaker may disable. This is the
+    safety property that lets the breaker be armed by default.
+
+    Every entry is an abandoned or dormant site. The three live products —
+    authoxi (E16HT1MC29JOA9, E375MDZN4Q6T7), agitome (E3FT34HVZMITC6) and uni
+    (E2QYIQKDHUWS4J) — are deliberately ABSENT, so a false positive can take a
+    dead marketing site offline and can never take production offline.
+
+    Adding a live product here converts this from a cost control into an
+    availability risk. Do not.
+
+      ETX7NAHEKHMR  code.maxinterview.com   40.1M requests / 529 GB in Aug 2026
+      EGE1BE7J30U8P maxinterview.com        19.5M requests / 1,559 GB
+      E3DREC6GKO0ZHN supertravelr.com        8.0M requests / 131 GB
+      E9834VVALEIQC geniusjnr.com           1.0M requests / 81 GB
+      E24BJHZNQCQO33 trips.supertravelr.com  0.3M requests / 4 GB
+
+    NOTE: geniusjnr.com and supertravelr.com are "active" zones rather than
+    abandoned ones, but neither has users today and both were significant
+    contributors to the August bill. If either grows real traffic, remove it
+    from this list at that point.
+  EOT
+  type        = list(string)
+  default = [
+    "ETX7NAHEKHMR",
+    "EGE1BE7J30U8P",
+    "E3DREC6GKO0ZHN",
+    "E9834VVALEIQC",
+    "E24BJHZNQCQO33",
+  ]
+}
+
+variable "alert_sms_number" {
+  description = <<-EOT
+    E.164 phone number for SNS SMS alerts, e.g. "+919876543210". Empty disables
+    the subscription.
+
+    The August post-mortem's standing open item: "one Gmail inbox is not a
+    control surface". SMS is billed per message (fractions of a cent) and the
+    topic is low-volume by design.
+  EOT
+  type        = string
+  default     = ""
 }
 
 # ───── VPC ─────
