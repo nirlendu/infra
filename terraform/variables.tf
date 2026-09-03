@@ -268,45 +268,29 @@ variable "s3_requests_limit" {
   default     = 3000000
 }
 
-# ───── Account-wide CloudFront alarms (08-cloudfront-account-alarms.tf) ─────
-#
-# These are DAILY RUN RATES derived from the monthly free tier, not guesses at
-# normal. A day above the threshold means the month ends up billable — which is
-# a fact about the cliff rather than an opinion about traffic.
+# ───── S3 egress usage budget (07-usage-budgets.tf) ─────
 
-variable "cloudfront_free_tier_requests_per_day" {
+variable "s3_direct_egress_gb_limit" {
   description = <<-EOT
-    CloudFront's 10M/month always-free request tier, expressed as a daily run
-    rate (10,000,000 / 30 = 333,333).
+    Monthly S3 internet-egress budget in GB — the tripwire on the bypass hole.
 
-    Raising this does not buy quiet — it buys a later warning. The number is
-    arithmetic, not preference.
+    Nineteen distributions have s3-website origins whose endpoints answer HTTP
+    200 directly, skipping Cloudflare and CloudFront both. S3 egress is $0.09/GB
+    with 100 GB free, which is MORE expensive than CloudFront.
+
+    50 GB is half the free allowance, alerting at 40% — first email around 20 GB.
+    Measured usage in August 2026 was 0.5 GB, so this is ~40x current and still
+    free when it fires.
+
+    NOTE: this replaced three CloudWatch alarms that used SEARCH() to avoid
+    enumerating distributions. CloudWatch rejects that outright —
+    "SEARCH is not supported on Metric Alarms" — though it works fine in
+    GetMetricData and dashboards. The CloudFront coverage those alarms were for
+    already exists in the usage budgets, which filter on UsageType and are
+    therefore distribution-agnostic.
   EOT
   type        = number
-  default     = 333333
-}
-
-variable "cloudfront_free_tier_bytes_per_day" {
-  description = <<-EOT
-    CloudFront's 1 TB/month always-free egress tier as a daily run rate
-    (1,024 GiB / 30 ≈ 34 GiB), in bytes.
-  EOT
-  type        = number
-  default     = 36596519417 # 34 GiB
-}
-
-variable "s3_direct_egress_gb_per_day" {
-  description = <<-EOT
-    Daily S3 egress that suggests the website endpoints are being hit directly,
-    bypassing both Cloudflare and CloudFront.
-
-    S3's free egress allowance is 100 GB/month, and its overage is $0.09/GB —
-    MORE expensive than CloudFront. Normal for this account is deploy traffic,
-    which is fractions of a GB. 5 GB/day is ~150 GB/month: past the free tier
-    and unambiguously not a deploy.
-  EOT
-  type        = number
-  default     = 5
+  default     = 50
 }
 
 # ───── Circuit breaker (09-circuit-breaker.tf) ─────

@@ -147,31 +147,41 @@ consumption, about four days into an August-rate crawl rather than three weeks.
 | `cf-requests-usage` (**D20**) | 5M requests | 2M | the *leading* indicator — August crossed 10M requests on the 9th but 1 TB only on the 20th |
 | `s3-requests-usage` (**D21**) | 3M requests | 1.2M | the 11.8M GETs that were half of August's S3 bill |
 
-### D22–D24. Account-wide alarms that cannot go stale
+### D22. S3 internet egress — the bypass hole
 
-D9–D21 are either account totals or hand-written lists. The per-distribution
-alarms name the resource — which is what a budget can never do — but they cover
-five distributions of thirty-five, and that list is guaranteed to rot as
-distributions are replaced or added.
+Every other control here assumes traffic arrives through Cloudflare and then
+CloudFront. It does not have to. **19 of the 35 distributions have `s3-website`
+origins, and those bucket endpoints answer HTTP 200 directly** — verified
+2026-09-03. A crawler that resolves one of those hostnames skips Cloudflare
+*and* CloudFront, and pays S3 egress at **$0.09/GB with only 100 GB free**,
+which is a more expensive way to lose the same money. No CloudFront control
+would see it, because it is not CloudFront traffic.
 
-These use CloudWatch `SEARCH()`, which resolves its matching series at
-**evaluation** time. There is no list to fall out of date: a distribution
-created five minutes ago is inside the alarm automatically.
+| Budget | Limit | First alert | Catches |
+|---|---|---|---|
+| `s3-egress-usage` (**D22**) | 50 GB | 20 GB | direct hits on the S3 website endpoints |
 
-| Alarm | Threshold | Why that number |
-|---|---|---|
-| `cf-account-requests` (**D22**) | 333,333/day | the 10M/month free tier **as a daily run rate** — a day above it means the month is billable |
-| `cf-account-bytes` (**D23**) | ~34 GiB/day | the 1 TB/month free tier as a daily run rate |
-| `s3-direct-egress` (**D24**) | 5 GB/day | **the bypass hole.** 19 of 35 distributions have `s3-website` origins whose endpoints answer HTTP 200 directly, skipping Cloudflare *and* CloudFront. S3 egress is $0.09/GB with 100 GB free — a more expensive way to lose the same money, and nothing else here would see it |
+Measured usage is **0.5 GB/month**, so this is latent rather than active — which
+is precisely when a tripwire is worth setting, and exactly July 2026's shape:
+645 GB accruing quietly at $0.00 with nothing watching the gradient.
 
-> **D22 and D23 are expected to be in ALARM on first apply.** The account is
-> running ~2M requests/day against a 333k threshold. That is the alarm correctly
-> reporting a live incident, not a mis-calibration. **Them going green is the
-> measurement** that the Cloudflare edge work succeeded.
+> **A correction worth keeping.** D22–D24 were originally written as CloudWatch
+> alarms using `SEARCH()`, so that account-wide coverage would need no list of
+> distributions and therefore could never go stale. That is a better shape, and
+> CloudWatch rejects it outright:
 >
-> D24 may sit in `INSUFFICIENT_DATA`: S3 request metrics are not enabled per
-> bucket by default and cost $0.20/million to collect. The alarm is declared
-> anyway so the gap is visible in code rather than only in prose.
+> ```
+> ValidationError: SEARCH is not supported on Metric Alarms.
+> ```
+>
+> `SEARCH()` works in `GetMetricData` and in dashboards — which is how it was
+> verified — and not in `PutMetricAlarm`. The apply failed on all three.
+>
+> The coverage was **recovered rather than rebuilt**: D19 and D20 filter on
+> `UsageType`, which is *distribution-agnostic*, so they already cover all 35
+> distributions and any created later — the whole point of the SEARCH alarms.
+> Only the S3 hole was uniquely theirs, and D22 closes it with no new machinery.
+> Verify a mechanism on the API you will actually call, not a neighbouring one.
 
 ### D8. Per-app tag-filtered budget (each product's `infra/`)
 

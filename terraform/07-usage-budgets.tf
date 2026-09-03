@@ -170,6 +170,78 @@ resource "aws_budgets_budget" "cloudfront_requests_usage" {
 # Unlike CloudFront, S3 HAS a usage-type group, so this filter cannot fall out
 # of date the way the two above can.
 # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# S3 egress to the internet — THE BYPASS HOLE.
+#
+# Every other control in this account assumes traffic arrives through Cloudflare
+# and then CloudFront. It does not have to. Nineteen of the thirty-five
+# distributions have plain `s3-website` origins, and those bucket endpoints
+# answer HTTP 200 directly — verified 2026-09-03:
+#
+#   http://web.maxinterview.com.production.s3-website...   HTTP 200
+#   http://web.geniusjnr.com.production.s3-website...      HTTP 200
+#
+# A crawler that resolves one of those hostnames skips Cloudflare AND CloudFront
+# and pays S3 egress at $0.09/GB with only 100 GB free — a MORE expensive way to
+# lose the same money. Not one CloudFront control would see it, because it is
+# not CloudFront traffic.
+#
+# CURRENT USAGE IS 0.5 GB/month, so this is latent rather than active — which is
+# exactly when a tripwire is worth setting, and exactly the shape of July 2026:
+# 645 GB accruing quietly at $0.00 while nothing watched the gradient.
+#
+# 50 GB is half the 100 GB free allowance, alerting at 40% — so the first email
+# lands around 20 GB, roughly 40x current usage and still free.
+#
+# THIS REPLACES THREE CLOUDWATCH ALARMS THAT COULD NOT EXIST. They used
+# `SEARCH()` to cover every distribution without enumerating any, which is a
+# genuinely better shape — and CloudWatch rejects it:
+#
+#   ValidationError: SEARCH is not supported on Metric Alarms.
+#
+# SEARCH works in GetMetricData and in dashboards, which is how it was verified,
+# and not in PutMetricAlarm. The coverage was recovered rather than rebuilt: the
+# two CloudFront usage budgets above filter on UsageType, which is
+# DISTRIBUTION-AGNOSTIC — they already cover all thirty-five distributions and
+# any created later, which was the entire point of the SEARCH alarms. Only the
+# S3 hole was uniquely theirs, and a usage budget closes it with no new
+# machinery.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "aws_budgets_budget" "s3_internet_egress_usage" {
+  provider     = aws.billing
+  name         = "shared-${var.env}-s3-egress-usage"
+  budget_type  = "USAGE"
+  limit_amount = tostring(var.s3_direct_egress_gb_limit)
+  limit_unit   = "GB"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name = "UsageTypeGroup"
+    # A usage-type GROUP, not an enumerated list of regional usage types — so
+    # unlike the CloudFront budgets above, this one cannot be out-flanked by a
+    # new AWS region.
+    values = ["S3: Data Transfer - Internet (Out)"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 40
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+    subscriber_sns_topic_arns  = [aws_sns_topic.budget_alerts.arn]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.alert_email]
+    subscriber_sns_topic_arns  = [aws_sns_topic.budget_alerts.arn]
+  }
+}
+
 resource "aws_budgets_budget" "s3_requests_usage" {
   provider     = aws.billing
   name         = "shared-${var.env}-s3-requests-usage"
