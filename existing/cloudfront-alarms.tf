@@ -48,6 +48,47 @@ locals {
     geniusjnr         = aws_cloudfront_distribution.cf_geniusjnr_com.id
     trips             = aws_cloudfront_distribution.cf_trips_supertravelr_com.id
   }
+
+  # ── Which distributions can carry an ERROR-RATE alarm at all ───────────────
+  #
+  # A fixed error-rate threshold only means something on a distribution whose
+  # normal error rate is near zero. Measured over 24h on 2026-09-03/04:
+  #
+  #   maxinterview        0.0% - 0.1%     healthy
+  #   supertravelr        0.0% - 0.1%     healthy
+  #   geniusjnr           0.0% - 0.3%     healthy
+  #   trips              16.2% - 31.5%    mean 24.9%
+  #   code_maxinterview   1.2% - 86.2%    mean 21.8%
+  #
+  # The first three sit at zero, so any sustained error rate is a real signal.
+  # The last two do not, because those sites are partly broken: trips returns
+  # 404 at `/` and has for at least a week, and code_maxinterview swings across
+  # the whole range hour to hour.
+  #
+  # The original alarm put a 25% threshold on all five. On trips that bisects
+  # the noise band — its 24h MEAN is 24.9% against a 25% threshold — and the
+  # result was 10 OK->ALARM transitions in 12 hours, i.e. 10 emails about a
+  # condition that had been true and unchanged for a week and was costing
+  # nothing. That is precisely the alarm fatigue COST-GUARDRAILS.md's own
+  # post-mortem identifies as the reason August ran for three weeks: once a
+  # notification is normal, a real one looks exactly like the noise.
+  #
+  # Raising the threshold until trips stops flapping does not work either. Its
+  # daily average was 54.4% on 1 September, so any threshold high enough to
+  # silence it (>55%, with hysteresis) is high enough to be decoration — and a
+  # rule that cannot fire is the failure mode this repo keeps writing down.
+  #
+  # So they are EXCLUDED, and the exclusion is the honest answer: a distribution
+  # with a 15-55% baseline error rate does not need an alarm, it needs its 404s
+  # fixed. Until someone does that, these two are still covered for COST by the
+  # Requests and BytesDownloaded alarms below, which is what actually matters
+  # here — 4xx responses are small and cheap, and this alarm was only ever an
+  # early-warning nicety on top.
+  error_rate_distributions = {
+    maxinterview = aws_cloudfront_distribution.cf_maxinterview_com.id
+    supertravelr = aws_cloudfront_distribution.cf_supertravelr_com.id
+    geniusjnr    = aws_cloudfront_distribution.cf_geniusjnr_com.id
+  }
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -185,25 +226,49 @@ resource "aws_cloudwatch_metric_alarm" "cf_bytes" {
 # `cf-cache-status: MISS` and `x-cache: Error from cloudfront` for a random
 # path, meaning a full round trip to be told nothing is there.
 #
-# A healthy static site sits in the low single digits. Sustained 25% means
-# something is walking a URL space rather than reading pages, and it will show
-# here BEFORE the volume alarms trip — which is what makes this the one worth
-# reading first.
+# The three distributions this applies to sit at 0.0-0.3%, so a sustained 50%
+# is not "elevated" — it is more than a hundred times normal, and means
+# something is walking a URL space rather than reading pages. It shows here
+# BEFORE the volume alarms trip, which is what makes it worth reading first.
 #
-# One hour, not two: this metric is cheap to be right about and there is no
-# legitimate deploy that produces a quarter 4xx for an hour.
+# ── CALIBRATION, LEARNED THE NOISY WAY (2026-09-04) ──────────────────────────
+#
+# This was originally 25% over ONE hour, applied to all five watched
+# distributions. Both of those were wrong.
+#
+# 25% bisected trips' normal range (16.2-31.5%, mean 24.9%), so the alarm
+# oscillated with the metric: 10 OK->ALARM transitions in 12 hours, 10 emails,
+# about a week-old condition that cost nothing. Two changes fix it, and the
+# `error_rate_distributions` local above carries the third:
+#
+#   threshold 25 -> 50   Above every healthy baseline by ~150x, and above the
+#                        noise band of any distribution still in scope.
+#
+#   1 period -> 3        HYSTERESIS. One bad hour no longer pages. A crawl that
+#                        matters does not stop after 60 minutes, so requiring
+#                        three consecutive hours costs nothing in detection and
+#                        removes every single-datapoint flap.
+#
+# `datapoints_to_alarm` is set equal to `evaluation_periods` deliberately: the
+# default "M of N" behaviour would let 3 non-consecutive spikes in any window
+# trip it, which is the flapping this is meant to end.
+#
+# NO ok_actions, unlike the volume alarms. Recovery from an error-rate blip is
+# not news, and an OK notification doubles the mail for no added signal — half
+# of the 10 emails were the metric falling back under the line.
 # ──────────────────────────────────────────────────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "cf_error_rate" {
-  for_each = local.watched_distributions
+  for_each = local.error_rate_distributions
 
   alarm_name          = "cf-4xx-${each.key}"
-  alarm_description   = "CloudFront ${each.key}: >25% 4xx for 1h. Signature of a URL-space crawl — dead paths are billed like live ones."
+  alarm_description   = "CloudFront ${each.key}: >50% 4xx for 3 consecutive hours. Signature of a URL-space crawl — dead paths are billed like live ones. Baseline for this distribution is under 0.3%."
   namespace           = "AWS/CloudFront"
   metric_name         = "4xxErrorRate"
   statistic           = "Average"
   period              = 3600
-  evaluation_periods  = 1
-  threshold           = 25
+  evaluation_periods  = 3
+  datapoints_to_alarm = 3
+  threshold           = 50
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
 
