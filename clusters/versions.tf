@@ -28,7 +28,7 @@
 #   ../existing   — the imported live-AWS replica (S3, CloudFront, ACM)
 #   ../cloudflare — the edge
 #
-# Consumers: aeternm/authoxi/infra, geniusjnr/uni-backend/infra, and whatever comes
+# Consumers: authoxi/authoxi-app-v1/infra, geniusjnr/mastersbound-backend-v1/infra, and whatever comes
 # next. See "What's published" in README.md for the parameter paths.
 ###############################################################################
 

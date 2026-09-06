@@ -5,7 +5,7 @@
 
 This is the **account-wide** cost doctrine for the whole AWS account — owned by `personal/infra/`
 (shared-infra) and consumed by every product. The judgment layer that decides *whether to spend at
-all* is the boardroom `cost-guardrails` skill (`_personal/boardroom/canon/skills/cost-guardrails/`);
+all* is the boardroom `cost-guardrails` skill (`_core/boardroom/canon/skills/cost-guardrails/`);
 **this doc is the mechanical map** of what's deployed to catch spend when it happens.
 
 The plan stacks **independent detection layers** plus **prevention layers**. Each exists because any
@@ -90,7 +90,7 @@ The two things that can actually run away on Fargate — **task size** and **tas
 condition key, so they cannot be denied at all. They are caught by **D17** (the ECS budget) and by
 **cost-audit §8**, which flags any task larger than 0.25 vCPU. Fargate's real cost traps are NAT
 Gateway and load balancers, and those are still denied above: the sanctioned design (API Gateway HTTP
-API → VPC link → Cloud Map → task in a public subnet) needs neither. See `aeternm/authoxi/infra/PLAN.md`.
+API → VPC link → Cloud Map → task in a public subnet) needs neither. See `authoxi/authoxi-app-v1/infra/PLAN.md`.
 
 **Opt-in.** Created by Terraform but *not* attached. To activate:
 
@@ -373,7 +373,7 @@ complete.
 | AWS Cost Anomaly Detection | per-service spike | the email names the service |
 
 Reflex: identify the resource → confirm intended → kill if not → if intended, record the spend + its
-kill condition in `_personal/boardroom/docs/CAPITAL.md`. **A fired-and-ignored guardrail = no guardrail.**
+kill condition in `_core/boardroom/docs/CAPITAL.md`. **A fired-and-ignored guardrail = no guardrail.**
 
 ---
 

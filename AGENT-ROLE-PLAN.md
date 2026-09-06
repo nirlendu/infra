@@ -183,7 +183,7 @@ Scoping notes worth remembering:
 
 **Phase 1 — state bucket.** ✅ **Already done.** `nirlendu-tfstate-419105693501` exists, versioning `Enabled`. Nothing to do.
 
-**Phase 2 — the role.** ✅ **Written:** `_personal/infra/terraform/05-agent-role.tf` — the `agent` role, two allow policies, the deny policy, the compact boundary, and an attachment of the existing `cost_guardrails`. `terraform fmt` + `validate` clean; policy sizes verified against the 6,144 limit. **Not applied** — needs Phase 0 first (both for safety and because Terraform literally cannot authenticate today).
+**Phase 2 — the role.** ✅ **Written:** `_core/infra/terraform/05-agent-role.tf` — the `agent` role, two allow policies, the deny policy, the compact boundary, and an attachment of the existing `cost_guardrails`. `terraform fmt` + `validate` clean; policy sizes verified against the 6,144 limit. **Not applied** — needs Phase 0 first (both for safety and because Terraform literally cannot authenticate today).
 
 Set `agent_trusted_principal_arns` to your admin identity when you apply. The role cannot manage itself (IAM writes denied) — deliberate.
 
@@ -276,4 +276,4 @@ aws sso login --profile admin        # you, 4h, when the session lapses
 AWS_PROFILE=authoxi-deploy make deploy   # the agent — assumes role/agent (1h) off the admin session
 ```
 
-The `authoxi-deploy` profile can't deploy anything **yet** — authoxi's own stack has never had its bootstrapping first-apply (the 5 roles, buckets, budget). That first apply is a human running `AWS_PROFILE=admin` in `aeternm/authoxi/infra`. After it, the agent takes over deploys. See note 2 in `05-agent-role.tf`.
+The `authoxi-deploy` profile can't deploy anything **yet** — authoxi's own stack has never had its bootstrapping first-apply (the 5 roles, buckets, budget). That first apply is a human running `AWS_PROFILE=admin` in `authoxi/authoxi-app-v1/infra`. After it, the agent takes over deploys. See note 2 in `05-agent-role.tf`.
