@@ -123,10 +123,21 @@ resource "cloudflare_ruleset" "cache_archived" {
 # immediate propagation — a Cloudflare purge clears the edge, but NOT browsers,
 # which is why browser_ttl is also held at 300s rather than something longer.
 #
-# The /api/ bypass is future-proofing, not a fix: neither zone serves a real
-# API today (both return HTML on /api/health — geniusjnr's is literally the
-# homepage catch-all). But "cache everything" plus a later-added JSON endpoint
-# on the same host is a silent, ugly failure, and the rule costs nothing now.
+# The /api/ bypass WAS future-proofing. It is not any more.
+#
+# It was written when neither zone served a real API — both returned HTML on
+# /api/health, geniusjnr's literally the homepage catch-all — on the reasoning
+# that "cache everything" plus a later-added JSON endpoint on the same host is a
+# silent, ugly failure. mastersbound.com is that later-added endpoint: the app
+# and its backend share one hostname, with the API under /api/* precisely because
+# this rule bypasses it. Its responses carry one applicant's shortlist, profile
+# and document list, and edge_ttl below runs in `override_origin` mode — which
+# discards the origin's own Cache-Control rather than respecting it.
+#
+# So on this zone the bypass is not defensive tidiness. Remove it and Cloudflare
+# will serve one signed-in person's data to the next visitor for 300 seconds. Any
+# zone added here that serves an API on the same host inherits the same rule and
+# the same requirement.
 #
 # Ordered first and made mutually exclusive with the cache rule below, so
 # exactly one rule matches any request. Do not rely on last-match-wins here.
@@ -167,12 +178,22 @@ resource "cloudflare_ruleset" "cache_active" {
         # between "97% of requests hit origin for nothing" and an edge that
         # actually absorbs a crawl.
         #
-        # The one thing to watch: if either zone ever grows a real page that
-        # reads a query parameter — a search page, a paginated list, a UTM
-        # landing variant that renders differently — it will be served the same
-        # cached response for every parameter value. Add a bypass rule for that
-        # path ABOVE this one, the way /api/ is handled, rather than removing
-        # this.
+        # The one thing to watch: if a zone ever grows a real page that reads a
+        # query parameter — a search page, a paginated list, a UTM landing
+        # variant that renders differently — it will be served the same cached
+        # response for every parameter value. Add a bypass rule for that path
+        # ABOVE this one, the way /api/ is handled, rather than removing this.
+        #
+        # mastersbound.com looks like that case and is not, which is worth
+        # stating so nobody "fixes" it. Its search state genuinely does live in
+        # query params (`/?q=`, `/?field=`, `/compare?demo`) — but it is an SPA:
+        # every one of those URLs returns the SAME HTML shell, and the query is
+        # read by JavaScript after load. One cached object per path is correct.
+        #
+        # That stops being true if it ever ships in `ssg` mode with per-query
+        # pre-rendered HTML. It cannot today — the app's own rule is that every
+        # indexable URL is enumerable at build time and unenumerable state stays
+        # in query params, which is exactly what keeps this safe.
         cache_key = {
           custom_key = {
             query_string = {

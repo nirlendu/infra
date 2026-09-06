@@ -51,6 +51,10 @@ locals {
       zone_id = "26402352e1cd08e18793200675137760"
       note    = "Active. Includes visa.supertravelr.com (not yet live; cached by explicit decision, purge on deploy)."
     }
+    mastersbound = {
+      zone_id = "34e6ae92b07d4623fda9c5c40a33d021"
+      note    = "Active. THE FIRST ZONE HERE THAT SERVES A REAL AUTHENTICATED API — see the /api/ note in cache-rules.tf. Apex only; was 525 (no origin) until the Mastersbound cutover."
+    }
   }
 
   # Zones that get TOPOLOGY ONLY — tiered caching, and nothing else.
@@ -74,11 +78,11 @@ locals {
   topology_only_zones = {
     authoxi = {
       zone_id = "1494bb422214793c077470d42ccc169b"
-      note    = "aeternm product. Caching owned by aeternm/authoxi/infra/terraform/cdn.tf."
+      note    = "aeternm product. Caching owned by authoxi/authoxi-app-v1/infra/terraform/cdn.tf."
     }
     agitome = {
       zone_id = "8156567dac29ef1ce198d48eb6ac243b"
-      note    = "aeternm product. Caching owned by aeternm/agitome/infra/terraform/cdn.tf."
+      note    = "aeternm product. Caching owned by agitome/agitome-app-v1/infra/terraform/cdn.tf."
     }
   }
 
@@ -97,6 +101,7 @@ locals {
     maxinterview = local.archived_zones.maxinterview.zone_id
     geniusjnr    = local.active_zones.geniusjnr.zone_id
     supertravelr = local.active_zones.supertravelr.zone_id
+    mastersbound = local.active_zones.mastersbound.zone_id
   }
 
   # Bot protection. Applied to archived zones only: blocking AI crawlers on a
@@ -106,9 +111,26 @@ locals {
 
   # Extensions exempted from rate limiting. A single page view pulls dozens of
   # these; counting them would throttle real users long before any crawler.
+  #
+  # `.json` joined the list with mastersbound.com, and for exactly the stated
+  # reason rather than for tidiness. That app's catalogue IS json served as static
+  # files — boot alone fetches four (`data/current.json`, `index.json`,
+  # `universities.json`, `countries.json`) and then one more per programme opened.
+  # At 20 non-static requests per 10s per IP per colo, a person browsing quickly
+  # gets blocked for 10 seconds, and the audience makes that worse rather than
+  # theoretical: international students behind campus wifi, cafés and
+  # carrier-grade NAT arrive as one shared IP.
+  #
+  # It costs almost nothing to exempt. Those files sit behind the 300s
+  # cache-everything rule in cache-rules.tf, so a scraper pulling the whole
+  # catalogue is absorbed at the edge and never reaches the origin — the rate
+  # limiter was never what protected them.
+  #
+  # The endpoint that actually needs throttling is unaffected: `/api/v1/...` does
+  # not end in `.json`, so it stays counted.
   static_extensions = [
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif",
-    ".svg", ".ico", ".woff", ".woff2", ".webp", ".map",
+    ".svg", ".ico", ".woff", ".woff2", ".webp", ".map", ".json",
   ]
 
   static_asset_expression = format(

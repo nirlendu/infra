@@ -36,7 +36,7 @@ module "app" {
   source          = "../../../../personal/infra/modules/app"
   name_prefix     = "authoxi"
   alert_email     = var.alert_email
-  git_repo_url    = "https://github.com/aeternm/authoxi.git"
+  git_repo_url    = "https://github.com/aeternm/authoxi-app-v1.git"
   instance_type   = "t4g.small"
   user_data_path  = abspath("${path.module}/../scripts/user-data.sh")
   app_secret_keys = ["AUTHOXI_SECRET_KEY", "AUTHOXI_MASTER_KEY"]
@@ -47,4 +47,4 @@ module "app" {
 > the per-app budget filter counts resources by that tag.
 
 See `examples/validate/` for a minimal config used to `terraform validate` the module.
-Live consumers: `aeternm/authoxi/infra/terraform/` (and agentlox, pending migration).
+Live consumers: `authoxi/authoxi-app-v1/infra/terraform/` (and agentlox, pending migration).
