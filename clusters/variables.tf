@@ -34,8 +34,13 @@ variable "companies" {
   description = "Companies that get a cluster. The key is the company name and becomes `<company>-<env>`."
 
   default = {
-    geniusjnr = {
-      description = "geniusjnr — uni-backend first, more to follow."
+    # geniusjnr was here until 2026-09-07. Its only product — the admissions
+    # backend, then called `uni` — moved to the `mastersbound` cluster with the rest
+    # of that rename, leaving the cluster empty, and an empty cluster is a name in
+    # the console that means nothing. geniusjnr.com itself is unaffected: it is
+    # served from S3 + CloudFront and never had anything on ECS.
+    mastersbound = {
+      description = "mastersbound — the admissions backend, moved off geniusjnr 2026-09-07."
       prefer_spot = true
     }
   }

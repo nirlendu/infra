@@ -33,11 +33,29 @@
 # before, and not `agent`, which is scoped to authoxi.
 #
 #   Scope the token itself to: Zone:Read, Zone Settings:Edit, Cache Rules:Edit,
-#   Zone WAF:Edit, Bot Management:Edit, Cache Purge (for `make purge`)
+#   Zone WAF:Edit, Bot Management:Edit, DNS:Edit, Cache Purge (for `make purge`)
 #
 #   Zone WAF is what the Rulesets API needs for rate limiting — "Firewall
 #   Services" is a DIFFERENT permission and is NOT enough. Symptom: 403 on
 #   rulesets/phases/http_ratelimit/entrypoint while firewall/rules returns 200.
+#
+#   DNS:Edit was added 2026-09-07 for the mastersbound.com cutover. Until then
+#   the token could not read a single DNS record, so no record in this account
+#   was in Terraform and none could be — which is why the zone was still carrying
+#   GoDaddy's parking records months after the domain was pointed here. DNS
+#   records are NOT owned by this stack; see the note below.
+#
+#   WHERE DNS RECORDS LIVE. The estate's rule, settled 2026-09-07:
+#
+#     A product stack owns the records that point at resources IT creates.
+#     This stack owns zone-level records (mail, domain verification) and how
+#     the edge behaves.
+#
+#   So `mastersbound.com -> the uni-web distribution`, its `www`, and that
+#   certificate's ACM validation records are all in
+#   mastersbound/mastersbound-web-v2/infra/terraform/dns.tf — the only stack that
+#   knows the distribution's domain name. This stack keeps its narrow
+#   `cloudflare-edge` role, which has no ACM rights and needs none.
 ###############################################################################
 
 terraform {
