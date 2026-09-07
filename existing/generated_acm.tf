@@ -13,7 +13,21 @@ resource "aws_acm_certificate" "c_maxinterview_com" {
   subject_alternative_names = ["*.maxinterview.com", "maxinterview.com"]
   tags                      = {}
   tags_all                  = {}
-  validation_method         = "EMAIL"
+  # DNS, not EMAIL. The import generator wrote EMAIL for all ten certificates in
+  # this file; nine of them really are email-validated, but ACM re-issued this one
+  # under DNS validation on 2026-07-01 (`renewal_summary.updated_at`), and state was
+  # never reconciled.
+  #
+  # `validation_method` forces replacement, so the stale value made every plan here
+  # read "1 to add, 1 to destroy" — a destroy of a certificate that is ISSUED and
+  # attached to FOUR live CloudFront distributions, including maxinterview.com and
+  # code.maxinterview.com. ACM refuses to delete a certificate in use, so the apply
+  # could only fail partway; the danger was never that it would succeed.
+  #
+  # Found 2026-09-07 while checking whether this stack was safe to apply before
+  # adding a /visa/* behaviour to the supertravelr.com distribution. Nothing about
+  # the certificate changed here: this makes the code match what AWS already holds.
+  validation_method = "DNS"
   options {
     certificate_transparency_logging_preference = "ENABLED"
   }

@@ -162,6 +162,56 @@ resource "aws_cloudfront_distribution" "cf_supertravelr_com" {
       enabled = false
     }
   }
+  # ── /visa/* -> the supertravelr-visa static export ─────────────────────────
+  # Added 2026-09-08. See supertravelr-visa-path.tf for why this app shares this
+  # distribution instead of taking one of its own. Ordered behaviours are matched
+  # before the default, so this claims /visa/* and nothing else.
+  ordered_cache_behavior {
+    path_pattern     = "/visa/*"
+    target_origin_id = "supertravelr-visa-web-prod"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    compress         = true
+
+    # ── allow-all, NOT redirect-to-https ─────────────────────────────────────
+    # This zone runs Cloudflare SSL mode `flexible`, so Cloudflare terminates TLS
+    # at its edge and connects to CloudFront over plain HTTP. `redirect-to-https`
+    # therefore 301s every request back to the URL it just came from, and since
+    # Cloudflare re-requests over HTTP again, it loops forever. Observed exactly
+    # that on 2026-09-08: `x-cache: Redirect from cloudfront` with `location`
+    # equal to the request URI.
+    #
+    # Flexible is not a sloppy default here, it is forced: the legacy origin is an
+    # S3 *website* endpoint, and those cannot serve HTTPS at all. So the zone
+    # cannot move to Full without breaking the site this distribution exists for.
+    #
+    # Visitors still get HTTPS — the zone has `always_use_https = on`, so
+    # Cloudflare upgrades them at the edge before CloudFront is ever reached. This
+    # also matches the distribution's own default_cache_behavior, which has always
+    # been allow-all for the same reason.
+    viewer_protocol_policy = "allow-all"
+
+    # CachingOptimized. It honours the origin's Cache-Control, which the deploy
+    # script sets per file type: immutable for content-hashed assets, no-cache
+    # for sw.js, must-revalidate for HTML so a deploy is visible immediately.
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.supertravelr_visa_index_rewrite.arn
+    }
+  }
+
+  # The visa app's bucket. A REST origin with OAC, not a website endpoint.
+  origin {
+    connection_attempts      = 3
+    connection_timeout       = 10
+    domain_name              = "supertravelr-visa-web-prod-8d63c630.s3.us-east-1.amazonaws.com"
+    origin_access_control_id = aws_cloudfront_origin_access_control.supertravelr_visa_web.id
+    origin_id                = "supertravelr-visa-web-prod"
+    origin_path              = null
+  }
+
   origin {
     connection_attempts      = 3
     connection_timeout       = 10
