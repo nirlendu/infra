@@ -21,10 +21,10 @@
 # somebody imports them on purpose.
 #
 # ── Nothing here is proxied ──────────────────────────────────────────────────
-# Both records below are DNS-only (grey cloud). For the ACM validation record
-# that is mandatory: a proxied CNAME returns Cloudflare's own address and ACM
-# never sees the value it is looking for, so the certificate sits in
-# PENDING_VALIDATION forever with a record that looks correct in the dashboard.
+# Every record below is DNS-only (grey cloud). For the two ACM validation records
+# that is mandatory: a proxied CNAME returns Cloudflare's own address, so ACM
+# never sees the value it is looking for and the certificate sits in
+# PENDING_VALIDATION forever behind a record that looks correct in the dashboard.
 # For the API hostname it is a deliberate choice — see the comment there.
 ###############################################################################
 
@@ -91,4 +91,31 @@ resource "cloudflare_dns_record" "visa_api" {
   ttl     = 300
   proxied = false
   comment = "supertravelr-visa API -> API Gateway. DNS-only on purpose. Managed by _core/infra/cloudflare."
+}
+
+# ── supertravelr.com: ACM domain validation for the ONE domain certificate ───
+#
+# From `terraform output supertravelr_acm_validation_record` in ../existing.
+#
+# One record, not two. The certificate carries `supertravelr.com` and
+# `*.supertravelr.com` as separate SANs, but ACM validates both against the same
+# registrable domain and therefore emits a single CNAME — the output lists it
+# twice, identically, once per SAN.
+#
+# This record is what replaces a human clicking a link in an inbox. The
+# certificate it validates is the one behind supertravelr.com, www, trips and
+# supertravelr.com/visa. Its EMAIL-validated predecessor expires 2026-10-22 with
+# its renewal sitting at PENDING_VALIDATION, which would have taken all of them
+# down at once. Deleting this record re-creates that failure mode — silently, at
+# the next renewal rather than immediately.
+resource "cloudflare_dns_record" "supertravelr_acm_validation" {
+  zone_id = local.supertravelr_zone_id
+  name    = "_7a12fa90e510378b2344c55a1ee00916.supertravelr.com"
+  type    = "CNAME"
+  # No trailing dot — Cloudflare normalises it away, and keeping it means a
+  # permanent one-character diff on every plan.
+  content = "_a7cc7df2087e5fb7ad95c02a595cffc4.jkddzztszm.acm-validations.aws"
+  ttl     = 60
+  proxied = false
+  comment = "ACM DNS validation for supertravelr.com + *.supertravelr.com. Managed by _core/infra/cloudflare."
 }

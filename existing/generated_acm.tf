@@ -159,23 +159,20 @@ resource "aws_acm_certificate" "c_indiabackpacks_com" {
   }
 }
 
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/cf0bab96-3679-4361-9ca7-c9446ad71d40"
-resource "aws_acm_certificate" "c_supertravelr_com" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "supertravelr.com"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.supertravelr.com", "supertravelr.com"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
+# REMOVED 2026-09-08: c_supertravelr_com, the EMAIL-validated certificate for
+# supertravelr.com + *.supertravelr.com (cf0bab96-...).
+#
+# It was due to expire 2026-10-22 with its managed renewal stuck at
+# PENDING_VALIDATION —
+# ACM mails five addresses at the domain and a human must approve within 72
+# hours, every renewal, forever, and nobody had. All three supertravelr
+# distributions rode it, so a lapse would have failed TLS for the legacy site,
+# trips.supertravelr.com and supertravelr.com/visa at the same moment.
+#
+# Replaced by aws_acm_certificate.supertravelr in supertravelr-acm.tf: same two
+# names, DNS-validated, renews itself from a record that lives in
+# ../cloudflare/dns-records.tf. Every consumer was moved across and the
+# certificate confirmed detached (InUseBy empty) before this was deleted.
 
 # __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/bcb01d4b-04db-4990-9524-1f4bbbafef0c"
 resource "aws_acm_certificate" "c_bettermoney_in" {
