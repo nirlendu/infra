@@ -235,7 +235,7 @@ resource "aws_cloudfront_distribution" "cf_supertravelr_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/cf0bab96-3679-4361-9ca7-c9446ad71d40"
+    acm_certificate_arn            = aws_acm_certificate_validation.supertravelr[0].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
@@ -383,7 +383,7 @@ resource "aws_cloudfront_distribution" "cf_visa_supertravelr_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/cf0bab96-3679-4361-9ca7-c9446ad71d40"
+    acm_certificate_arn            = aws_acm_certificate_validation.supertravelr[0].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
@@ -746,7 +746,7 @@ resource "aws_cloudfront_distribution" "cf_trips_supertravelr_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/cf0bab96-3679-4361-9ca7-c9446ad71d40"
+    acm_certificate_arn            = aws_acm_certificate_validation.supertravelr[0].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
