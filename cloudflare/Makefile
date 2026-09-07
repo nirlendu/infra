@@ -25,6 +25,7 @@ ZONE_ID_superwomn    := b04e6e45e899cf5c6b349964fdc86643
 ZONE_ID_suprhealthe  := 68de4bb68b0882c0dbc4db705cfc3fc1
 ZONE_ID_geniusjnr    := 04215cd92c731147fe3cf48f016efc5a
 ZONE_ID_supertravelr := 26402352e1cd08e18793200675137760
+ZONE_ID_mastersbound := 34e6ae92b07d4623fda9c5c40a33d021
 
 .PHONY: help plan apply purge check token
 
@@ -35,7 +36,7 @@ help:
 	@echo "make purge ZONE=geniusjnr    - purge that zone's edge cache (run after a deploy)"
 	@echo "make check                   - show live cache status for every managed host"
 	@echo ""
-	@echo "Zones: maxinterview nirlendu superwomn suprhealthe geniusjnr supertravelr"
+	@echo "Zones: maxinterview nirlendu superwomn suprhealthe geniusjnr supertravelr mastersbound"
 
 # Prints an `export` line for eval. It does NOT set the variable itself — a
 # recipe runs in its own shell and anything it exports dies with that shell,
@@ -85,7 +86,8 @@ purge:
 # `DYNAMIC` = HTML is passing through to origin and billing at CloudFront.
 check:
 	@for h in maxinterview.com code.maxinterview.com nirlendu.com superwomn.com \
-	          suprhealthe.com geniusjnr.com supertravelr.com visa.supertravelr.com; do \
+	          suprhealthe.com geniusjnr.com supertravelr.com visa.supertravelr.com \
+	          mastersbound.com uni.geniusjnr.com; do \
 	  s=$$(curl -sS -o /dev/null -D - --max-time 20 "https://$$h/" 2>/dev/null \
 	       | grep -i '^cf-cache-status' | awk '{print $$2}' | tr -d '\r'); \
 	  printf "  %-26s %s\n" "$$h" "$${s:-none}"; \

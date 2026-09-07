@@ -109,6 +109,29 @@ locals {
   # should be made deliberately per product rather than inherited from here.
   bot_zones = { for k, v in local.archived_zones : k => v.zone_id }
 
+  # Zones with edge redirects. See redirects.tf — these are answered by
+  # Cloudflare and never reach an origin, which is why they are free.
+  #
+  # Only mastersbound today. `uni.geniusjnr.com -> mastersbound.com` belongs here
+  # too and is deliberately absent: it must not exist until the new host is
+  # verified serving 200, and the Android fleet's Remote Config push is gated
+  # behind it. Adding it early makes the old host unreachable for every install
+  # that has not yet fetched a new config.
+  redirect_zones = {
+    mastersbound = {
+      zone_id = local.active_zones.mastersbound.zone_id
+      rules = [
+        {
+          # `http.host eq` rather than a path match: this fires for every request
+          # to the www name, including the root, so no deep link is stranded.
+          expression  = "http.host eq \"www.mastersbound.com\""
+          description = "www -> apex (canonical host)"
+          target      = "concat(\"https://mastersbound.com\", http.request.uri.path)"
+        },
+      ]
+    }
+  }
+
   # Extensions exempted from rate limiting. A single page view pulls dozens of
   # these; counting them would throttle real users long before any crawler.
   #

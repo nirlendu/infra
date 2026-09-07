@@ -97,3 +97,52 @@ resource "cloudflare_zone_setting" "browser_cache_ttl_archived" {
   setting_id = "browser_cache_ttl"
   value      = 14400 # 4h, matching the cache rule's browser_ttl
 }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TLS to the origin — mastersbound.com only, and only because it was wrong.
+#
+# The zone was created with GoDaddy's defaults and read, live on 2026-09-07:
+#
+#   ssl  full        always_use_https  off        min_tls_version  1.0
+#
+# `full` encrypts to the origin but does NOT validate the certificate, so a
+# Cloudflare-to-origin hop can be intercepted by anything able to present any
+# certificate at all. Every other zone in this account is already `strict`
+# (geniusjnr, maxinterview, nirlendu, verified the same day) — this one was
+# simply never brought in line, which is precisely the sort of thing that stays
+# invisible until it is in Terraform.
+#
+# SCOPED TO ONE ZONE, DELIBERATELY, and this is the interesting part. The obvious
+# form is `for_each = local.active_zones`, and it would have been wrong:
+# supertravelr.com is on `flexible`, which means Cloudflare talks PLAIN HTTP to
+# its origin. Flipping it to `strict` in a sweep aimed at mastersbound would be a
+# live change to an unrelated product, made as a side effect. That zone needs its
+# own look and its own change.
+#
+# Safe to apply before the cutover: the apex is still parked, so `strict` changes
+# a 525 into a different 525 and no user is behind it.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "cloudflare_zone_setting" "mastersbound_ssl" {
+  zone_id    = local.active_zones.mastersbound.zone_id
+  setting_id = "ssl"
+  value      = "strict"
+}
+
+# CloudFront already answers http with a 301 (`redirect-to-https` on every cache
+# behaviour), but that redirect costs a round trip to the origin edge. Answering
+# it at Cloudflare is free, faster, and means a plaintext request never leaves
+# the visitor's own region.
+resource "cloudflare_zone_setting" "mastersbound_always_use_https" {
+  zone_id    = local.active_zones.mastersbound.zone_id
+  setting_id = "always_use_https"
+  value      = "on"
+}
+
+# TLS 1.0 and 1.1 are deprecated and have been unsafe for years. The app's own
+# distribution already floors at TLSv1.2_2021; this closes the same gap on the
+# half of the path Cloudflare owns.
+resource "cloudflare_zone_setting" "mastersbound_min_tls" {
+  zone_id    = local.active_zones.mastersbound.zone_id
+  setting_id = "min_tls_version"
+  value      = "1.2"
+}
