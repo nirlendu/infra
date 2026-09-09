@@ -112,11 +112,21 @@ locals {
   # Zones with edge redirects. See redirects.tf — these are answered by
   # Cloudflare and never reach an origin, which is why they are free.
   #
-  # Only mastersbound today. `uni.geniusjnr.com -> mastersbound.com` belongs here
-  # too and is deliberately absent: it must not exist until the new host is
-  # verified serving 200, and the Android fleet's Remote Config push is gated
-  # behind it. Adding it early makes the old host unreachable for every install
-  # that has not yet fetched a new config.
+  # `uni.geniusjnr.com -> mastersbound.com` belongs here too and is deliberately
+  # absent: it must not exist until the new host is verified serving 200, and the
+  # Android fleet's Remote Config push is gated behind it. Adding it early makes
+  # the old host unreachable for every install that has not yet fetched a new
+  # config.
+  #
+  # supertravelr joined on 2026-09-08, and it is a CODIFICATION rather than a new
+  # behaviour. Measured that day: www.supertravelr.com already answered
+  # `302 -> https://supertravelr.com/`, path preserved, from Cloudflare — so a
+  # redirect existed that this stack had never declared. That is the shape the
+  # workspace rule about console changes exists to prevent: the repo described an
+  # estate it did not fully own, and the next apply would either revert the rule
+  # or collide with it. Declaring it here makes the code true, and upgrades the
+  # status to 301 on the way past, which is the half that actually matters —
+  # `SEO-7`, and a 302 leaves both hostnames indexed indefinitely.
   redirect_zones = {
     mastersbound = {
       zone_id = local.active_zones.mastersbound.zone_id
@@ -127,6 +137,16 @@ locals {
           expression  = "http.host eq \"www.mastersbound.com\""
           description = "www -> apex (canonical host)"
           target      = "concat(\"https://mastersbound.com\", http.request.uri.path)"
+        },
+      ]
+    }
+    supertravelr = {
+      zone_id = local.active_zones.supertravelr.zone_id
+      rules = [
+        {
+          expression  = "http.host eq \"www.supertravelr.com\""
+          description = "www -> apex (canonical host)"
+          target      = "concat(\"https://supertravelr.com\", http.request.uri.path)"
         },
       ]
     }
