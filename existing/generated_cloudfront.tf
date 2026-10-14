@@ -105,7 +105,7 @@ resource "aws_cloudfront_distribution" "cf_suprhealthe_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/7d33d895-f66b-4790-bfbe-33c2860aa72d"
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["suprhealthe.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
@@ -391,66 +391,6 @@ resource "aws_cloudfront_distribution" "cf_visa_supertravelr_com" {
   }
 }
 
-# __generated__ by Terraform from "E3LY25D0RHQHYG"
-resource "aws_cloudfront_distribution" "cf_contents_dailyapp_cc" {
-  aliases                         = ["contents.dailyapp.cc"]
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-contents.dailyapp.co"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "redirect-to-https"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "contents.dailyapp.co.s3.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-contents.dailyapp.co"
-    origin_path              = null
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/0a0849ba-e174-42ec-b7bf-4b3fd6731712"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
-    ssl_support_method             = "sni-only"
-  }
-}
-
 # __generated__ by Terraform from "E24NYF7YFMYPJZ"
 resource "aws_cloudfront_distribution" "cf_superwomn_com" {
   aliases                         = ["*.superwomn.com", "superwomn.com"]
@@ -511,7 +451,11 @@ resource "aws_cloudfront_distribution" "cf_superwomn_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/182bf7d1-50f8-4009-bc3c-ef5d2db1d69f"
+    # The DNS-validated certificate in domain-acm.tf, through its VALIDATION
+    # resource so this can never point at one still pending. It replaced the
+    # EMAIL-validated 182bf7d1-…, which lapsed on 2026-10-04 because nobody
+    # approved its renewal mail.
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["superwomn.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
@@ -591,81 +535,7 @@ resource "aws_cloudfront_distribution" "cf_geniusjnr_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/80652e60-d50e-4909-974d-21edfbc3cbe4"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-# __generated__ by Terraform from "E183U7A1HR01X0"
-resource "aws_cloudfront_distribution" "cf_admin_dailyapp_cc" {
-  aliases                         = ["admin.dailyapp.cc"]
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  custom_error_response {
-    error_caching_min_ttl = 60
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/"
-  }
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-Website-admin.dailyapp.co.production.s3-website.ap-south-1.amazonaws.com"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "redirect-to-https"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "admin.dailyapp.co.production.s3-website.ap-south-1.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-Website-admin.dailyapp.co.production.s3-website.ap-south-1.amazonaws.com"
-    origin_path              = null
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols     = ["TLSv1", "TLSv1.1", "TLSv1.2"]
-    }
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/0a0849ba-e174-42ec-b7bf-4b3fd6731712"
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["geniusjnr.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2019"
@@ -814,144 +684,10 @@ resource "aws_cloudfront_distribution" "cf_contents_suprhealthe_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/7d33d895-f66b-4790-bfbe-33c2860aa72d"
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["suprhealthe.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-# __generated__ by Terraform from "E3I1B4VDUN8RDK"
-resource "aws_cloudfront_distribution" "cf_indiabackpacks_com" {
-  aliases                         = ["*.indiabackpacks.com", "indiabackpacks.com"]
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  custom_error_response {
-    error_caching_min_ttl = 10
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/"
-  }
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-Website-web.nirlendu.com.production.s3-website.ap-south-1.amazonaws.com"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "redirect-to-https"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "web.indiabackpacks.com.production.s3-website.ap-south-1.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-Website-web.nirlendu.com.production.s3-website.ap-south-1.amazonaws.com"
-    origin_path              = null
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols     = ["TLSv1", "TLSv1.1", "TLSv1.2"]
-    }
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/cfc63882-0326-411a-a07d-39a57bf403e0"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-# __generated__ by Terraform from "E3ULDEZ3T0X96V"
-resource "aws_cloudfront_distribution" "cf_e3uldez3t0x96v" {
-  aliases                         = []
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-contents.indiabackpacks.com"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "allow-all"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "contents.indiabackpacks.com.s3.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-contents.indiabackpacks.com"
-    origin_path              = null
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/cfc63882-0326-411a-a07d-39a57bf403e0"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
     ssl_support_method             = "sni-only"
   }
 }
@@ -1107,7 +843,7 @@ resource "aws_cloudfront_distribution" "cf_contents_geniusjnr_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/80652e60-d50e-4909-974d-21edfbc3cbe4"
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["geniusjnr.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"
@@ -1168,154 +904,6 @@ resource "aws_cloudfront_distribution" "cf_e1bg16f7olwno3" {
   }
   viewer_certificate {
     acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/15aedeec-578b-4820-9953-e4c92c1abd99"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-# __generated__ by Terraform from "E23IHIABKH8IY8"
-resource "aws_cloudfront_distribution" "cf_dailyapp_cc" {
-  aliases                         = ["*.dailyapp.cc", "dailyapp.cc"]
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  custom_error_response {
-    error_caching_min_ttl = 60
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/"
-  }
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-Website-web.dailyapp.co.production.s3-website.ap-south-1.amazonaws.com"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "redirect-to-https"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "web.dailyapp.co.production.s3-website.ap-south-1.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-Website-web.dailyapp.co.production.s3-website.ap-south-1.amazonaws.com"
-    origin_path              = null
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols     = ["TLSv1", "TLSv1.1", "TLSv1.2"]
-    }
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/0a0849ba-e174-42ec-b7bf-4b3fd6731712"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-# __generated__ by Terraform from "EUKZ2DCOYH9LU"
-resource "aws_cloudfront_distribution" "cf_bettermoney_in" {
-  aliases                         = ["*.bettermoney.in", "bettermoney.in"]
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  custom_error_response {
-    error_caching_min_ttl = 10
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/"
-  }
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-Website-web.bettermoney.in.production.s3-website.ap-south-1.amazonaws.com"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "redirect-to-https"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "web.bettermoney.in.production.s3-website.ap-south-1.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-Website-web.bettermoney.in.production.s3-website.ap-south-1.amazonaws.com"
-    origin_path              = null
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols     = ["TLSv1", "TLSv1.1", "TLSv1.2"]
-    }
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/bcb01d4b-04db-4990-9524-1f4bbbafef0c"
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2019"
@@ -1774,81 +1362,7 @@ resource "aws_cloudfront_distribution" "cf_nirlendu_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/523f8d17-66ef-4dd9-b862-8f786b0e689b"
-    cloudfront_default_certificate = false
-    iam_certificate_id             = null
-    minimum_protocol_version       = "TLSv1.2_2019"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-# __generated__ by Terraform from "EFGNU19TOBWN9"
-resource "aws_cloudfront_distribution" "cf_plusfoods_in" {
-  aliases                         = ["*.plusfoods.in", "plusfoods.in"]
-  comment                         = null
-  continuous_deployment_policy_id = null
-  default_root_object             = null
-  enabled                         = true
-  http_version                    = "http2"
-  is_ipv6_enabled                 = true
-  price_class                     = "PriceClass_100"
-  retain_on_delete                = false
-  staging                         = false
-  tags                            = {}
-  tags_all                        = {}
-  wait_for_deployment             = true
-  web_acl_id                      = null
-  custom_error_response {
-    error_caching_min_ttl = 10
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/"
-  }
-  default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD"]
-    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    cached_methods             = ["GET", "HEAD"]
-    compress                   = true
-    default_ttl                = 0
-    field_level_encryption_id  = null
-    max_ttl                    = 0
-    min_ttl                    = 0
-    origin_request_policy_id   = null
-    realtime_log_config_arn    = null
-    response_headers_policy_id = null
-    smooth_streaming           = false
-    target_origin_id           = "S3-Website-web.plusfoods.in.s3-website.ap-south-1.amazonaws.com"
-    trusted_key_groups         = []
-    trusted_signers            = []
-    viewer_protocol_policy     = "redirect-to-https"
-    grpc_config {
-      enabled = false
-    }
-  }
-  origin {
-    connection_attempts      = 3
-    connection_timeout       = 10
-    domain_name              = "web.plusfoods.in.s3-website.ap-south-1.amazonaws.com"
-    origin_access_control_id = null
-    origin_id                = "S3-Website-web.plusfoods.in.s3-website.ap-south-1.amazonaws.com"
-    origin_path              = null
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols     = ["TLSv1", "TLSv1.1", "TLSv1.2"]
-    }
-  }
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-  viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/c5ac820a-8aa3-4bc8-892c-1c93c6ac6169"
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["nirlendu.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2019"
@@ -1916,7 +1430,7 @@ resource "aws_cloudfront_distribution" "cf_practise_geniusjnr_com" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn            = "arn:aws:acm:us-east-1:419105693501:certificate/80652e60-d50e-4909-974d-21edfbc3cbe4"
+    acm_certificate_arn            = aws_acm_certificate_validation.domain["geniusjnr.com"].certificate_arn
     cloudfront_default_certificate = false
     iam_certificate_id             = null
     minimum_protocol_version       = "TLSv1.2_2021"

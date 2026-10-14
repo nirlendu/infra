@@ -8,12 +8,16 @@ is clean (zero drift).**
 State: remote — `s3://nirlendu-tfstate-419105693501/existing/terraform.tfstate`
 (versioned, encrypted, native S3 locking).
 
-## What's tracked (63 resources)
+## What's tracked
 | Type | Count | File |
 |---|---|---|
-| `aws_acm_certificate` | 10 | `generated_acm.tf` |
-| `aws_cloudfront_distribution` | 25 | `generated_cloudfront.tf` |
+| `aws_acm_certificate` | 19, all DNS-validated, apex + wildcard on one cert | `domain-acm.tf` (17), `supertravelr-acm.tf` (1), `generated_acm.tf` (1, maxinterview) |
+| `aws_cloudfront_distribution` | 18 | `generated_cloudfront.tf` |
 | `aws_s3_bucket` | 28 | `generated_s3.tf` |
+
+dailyapp.cc, indiabackpacks.com, bettermoney.in and plusfoods.in are
+decommissioned: their distributions and certificates are deleted. Their S3
+buckets are still here, deliberately — deleting a bucket destroys its contents.
 
 Buckets span 3 regions (23 ap-south-1, 1 us-east-1, 4 us-west-2) via the
 aliased providers in `versions.tf`.

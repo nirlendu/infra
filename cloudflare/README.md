@@ -75,10 +75,8 @@ A Cloudflare purge clears the **edge only, not browsers** — which is why
 | | |
 |---|---|
 | `authoxi.com`, `agitome.com` | aeternm products; edge owned by their own app terraform. Origins are API Gateway and **must never** be cache-everything'd. |
-| `dailyapp.cc` | Proxied by a **second Cloudflare account** this token cannot see (`ns: jo.ns.cloudflare.com`). Unmanaged and invisible. |
-| `indiabackpacks.com`, `plusfoods.in` | **Not on Cloudflare at all.** GoDaddy DNS (`domaincontrol.com`) pointing straight at AWS. No edge cache, no bot protection, no free tier in front. Least-protected surface in the estate. |
-
-Those last two rows are open risks, not decisions.
+| `dailyapp.cc`, `indiabackpacks.com`, `bettermoney.in`, `plusfoods.in` | **Decommissioned** — no longer held. Their distributions and certificates are deleted from `../existing`; only their S3 buckets remain. |
+| aeternm, agentlox, agentparle, agicite, agiremit, allowline, betterity, fetchtoll, longahealth, maxagenter, rashtrnirman | Held, no site yet. Each carries **only** its ACM validation record (`acm_validation` in `dns-records.tf`), which keeps its certificate renewing. No edge policy until something is served. |
 
 ## Auth
 

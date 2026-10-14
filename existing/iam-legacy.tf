@@ -3,12 +3,12 @@
 #
 # THE PROBLEM
 #
-# Two IAM users predate this account's move to SSO. Between them they hold two
-# access keys created in 2020, and one of those keys has its SECRET committed in
-# plaintext at geniusjnr/backend/package.json line 18, in git since 2022-05-03,
+# One IAM user predates this account's move to SSO; a second, dailyappco@gmail.com,
+# was deleted with dailyapp.cc (see PHASE 1c). Its access key, created in 2020,
+# has its SECRET committed in plaintext at geniusjnr/backend/package.json line 18, in git since 2022-05-03,
 # still in HEAD, in a repo with no CI that could ever have scanned it.
 #
-# Both users reach AdministratorAccess. So does that committed credential.
+# That user reaches AdministratorAccess. So does that committed credential.
 #
 # WHY NOT JUST DELETE THE KEY
 #
@@ -65,8 +65,7 @@ data "aws_iam_policy" "cost_guardrails" {
 }
 
 locals {
-  legacy_admin_user  = "nirlendu@gmail.com"
-  legacy_unused_user = "dailyappco@gmail.com"
+  legacy_admin_user = "nirlendu@gmail.com"
 
   # The single bucket and single distribution practise-web touches.
   legacy_deploy_bucket       = "web.geniusjnr.com.production"
@@ -143,11 +142,11 @@ resource "aws_iam_user_policy_attachment" "legacy_web_deploy" {
 # first apply, the credential sitting in git cannot provision the expensive
 # resources even while it is still nominally an administrator.
 #
-# It is attached to both users, including the one whose key has never been used
-# — an unused credential is exactly the one nobody would notice being used.
+# An unused credential is exactly the one nobody would notice being used, which
+# is why it went to the dailyapp user too, until that user was deleted.
 # ══════════════════════════════════════════════════════════════════════════════
 resource "aws_iam_user_policy_attachment" "legacy_cost_guardrails" {
-  for_each = toset([local.legacy_admin_user, local.legacy_unused_user])
+  for_each = toset([local.legacy_admin_user])
 
   user       = each.value
   policy_arn = data.aws_iam_policy.cost_guardrails.arn
@@ -177,7 +176,7 @@ import {
 # The group is the SECOND path to admin and is easy to miss: removing the two
 # direct attachments above while leaving group membership in place would look
 # like a successful de-privileging and change nothing at all. `admin-all` has
-# AdministratorAccess attached and contains exactly these two users.
+# AdministratorAccess attached and contained exactly the two legacy users.
 #
 # aws_iam_user_group_membership, NOT aws_iam_group_membership: the latter is
 # what this file reached for first and it cannot be imported at all — the
@@ -193,10 +192,11 @@ import {
   id = "nirlendu@gmail.com/admin-all"
 }
 
-import {
-  to = aws_iam_user_group_membership.legacy_admin_group["dailyappco@gmail.com"]
-  id = "dailyappco@gmail.com/admin-all"
-}
+# dailyappco@gmail.com, the second legacy user, no longer exists: dailyapp.cc is
+# decommissioned and its 2020 key was never used once. It was imported as an
+# `aws_iam_user` with `force_destroy` and then deleted, which took its key, its
+# console password and its admin-all membership with it — the Terraform-native
+# route this file's header describes, open here because nothing deployed with it.
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ▼▼▼ PHASE 2 — DELETE EVERYTHING BETWEEN THESE MARKERS TO DE-PRIVILEGE ▼▼▼
@@ -226,7 +226,7 @@ resource "aws_iam_user_policy_attachment" "legacy_s3_full_access" {
 }
 
 resource "aws_iam_user_group_membership" "legacy_admin_group" {
-  for_each = toset([local.legacy_admin_user, local.legacy_unused_user])
+  for_each = toset([local.legacy_admin_user])
 
   user   = each.value
   groups = ["admin-all"]
@@ -234,9 +234,9 @@ resource "aws_iam_user_group_membership" "legacy_admin_group" {
 
 # ▲▲▲ END PHASE 2 BLOCK ▲▲▲
 #
-# RESIDUAL RISK, recorded rather than quietly carried: both users keep console
-# login profiles created in 2020 with ZERO MFA devices. `aws_iam_user_login_profile`
+# RESIDUAL RISK, recorded rather than quietly carried: the user keeps a console
+# login profile created in 2020 with ZERO MFA devices. `aws_iam_user_login_profile`
 # cannot be imported either (same provider limitation as access keys), so this
-# cannot be closed here without deleting the users. After phase 2 a console
-# login on these users reaches one S3 bucket and one invalidation, which is the
+# cannot be closed here without deleting the user. After phase 2 a console
+# login on it reaches one S3 bucket and one invalidation, which is the
 # same blast radius as the key. It closes fully when the legacy estate is retired.
