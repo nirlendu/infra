@@ -13,11 +13,14 @@
 #   authoxi.com / agitome.com  — aeternm products. Their edge is owned by their
 #     own app terraform (aeternm/*/infra/terraform/cdn.tf) and their origins are
 #     API Gateway, which must never be cache-everything'd.
-#   dailyapp.cc  — proxied by a SECOND Cloudflare account this token cannot
-#     see (ns: jo.ns.cloudflare.com). Unmanaged. See README.
-#   indiabackpacks.com / plusfoods.in  — NOT on Cloudflare at all. GoDaddy DNS
-#     (domaincontrol.com) pointing straight at AWS. No edge cache, no bot
-#     protection, no free tier in front of them. See README.
+#   dailyapp.cc / indiabackpacks.com / bettermoney.in / plusfoods.in —
+#     decommissioned. No longer held, and their CloudFront distributions and
+#     certificates are gone from ../existing; only their S3 buckets remain. None
+#     was ever a zone in this account: dailyapp.cc sat in a second Cloudflare
+#     account, the rest on GoDaddy DNS.
+#   The eleven held domains with no site yet (aeternm, agentlox, …) carry only
+#     an ACM validation record, in dns-records.tf. A validation record is not
+#     edge policy, so they are deliberately absent from the maps below.
 ###############################################################################
 
 locals {

@@ -33,131 +33,23 @@ resource "aws_acm_certificate" "c_maxinterview_com" {
   }
 }
 
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/523f8d17-66ef-4dd9-b862-8f786b0e689b"
-resource "aws_acm_certificate" "c_nirlendu_com" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "nirlendu.com"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.nirlendu.com", "nirlendu.com"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/0a0849ba-e174-42ec-b7bf-4b3fd6731712"
-resource "aws_acm_certificate" "c_dailyapp_cc" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "dailyapp.cc"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.dailyapp.cc", "dailyapp.cc"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/7d33d895-f66b-4790-bfbe-33c2860aa72d"
-resource "aws_acm_certificate" "c_suprhealthe_com" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "suprhealthe.com"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.suprhealthe.com", "suprhealthe.com"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/c5ac820a-8aa3-4bc8-892c-1c93c6ac6169"
-resource "aws_acm_certificate" "c_plusfoods_in" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "plusfoods.in"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.plusfoods.in", "plusfoods.in"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/182bf7d1-50f8-4009-bc3c-ef5d2db1d69f"
-resource "aws_acm_certificate" "c_superwomn_com" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "superwomn.com"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.superwomn.com", "superwomn.com"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/80652e60-d50e-4909-974d-21edfbc3cbe4"
-resource "aws_acm_certificate" "c_geniusjnr_com" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "geniusjnr.com"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.geniusjnr.com", "geniusjnr.com"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/cfc63882-0326-411a-a07d-39a57bf403e0"
-resource "aws_acm_certificate" "c_indiabackpacks_com" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "indiabackpacks.com"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.indiabackpacks.com", "indiabackpacks.com"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}
+# REMOVED 2026-10-14: c_superwomn_com, the EMAIL-validated certificate for
+# superwomn.com + *.superwomn.com (182bf7d1-...). It EXPIRED on 2026-10-04 — its
+# renewal mail was never approved — and cf_superwomn_com kept serving it, which
+# only went unnoticed because Cloudflare does not verify the origin certificate.
+# Replaced by aws_acm_certificate.domain["superwomn.com"] in domain-acm.tf, DNS-
+# validated; the distribution was moved across before this was deleted.
+#
+# REMOVED 2026-10-14, the last of the EMAIL-validated certificates: c_nirlendu_com
+# (523f8d17-...), c_suprhealthe_com (7d33d895-...) and c_geniusjnr_com
+# (80652e60-...), each replaced by its domain's entry in domain-acm.tf after
+# every distribution here was moved across. agitome.com's (b621b471-...) and
+# purvadas.com's (9055def2-...) were never in Terraform; they were imported
+# only so that Terraform could delete them.
+#
+# REMOVED the same day, with their domains decommissioned: c_dailyapp_cc,
+# c_indiabackpacks_com, c_bettermoney_in and c_plusfoods_in — all expired, all
+# EMAIL-validated, deleted after the seven distributions riding them.
 
 # REMOVED 2026-09-08: c_supertravelr_com, the EMAIL-validated certificate for
 # supertravelr.com + *.supertravelr.com (cf0bab96-...).
@@ -173,21 +65,3 @@ resource "aws_acm_certificate" "c_indiabackpacks_com" {
 # names, DNS-validated, renews itself from a record that lives in
 # ../cloudflare/dns-records.tf. Every consumer was moved across and the
 # certificate confirmed detached (InUseBy empty) before this was deleted.
-
-# __generated__ by Terraform from "arn:aws:acm:us-east-1:419105693501:certificate/bcb01d4b-04db-4990-9524-1f4bbbafef0c"
-resource "aws_acm_certificate" "c_bettermoney_in" {
-  certificate_authority_arn = null
-  certificate_body          = null
-  certificate_chain         = null
-  domain_name               = "bettermoney.in"
-  early_renewal_duration    = null
-  key_algorithm             = "RSA_2048"
-  private_key               = null # sensitive
-  subject_alternative_names = ["*.bettermoney.in", "bettermoney.in"]
-  tags                      = {}
-  tags_all                  = {}
-  validation_method         = "EMAIL"
-  options {
-    certificate_transparency_logging_preference = "ENABLED"
-  }
-}

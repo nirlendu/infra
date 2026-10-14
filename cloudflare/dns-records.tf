@@ -119,3 +119,61 @@ resource "cloudflare_dns_record" "supertravelr_acm_validation" {
   proxied = false
   comment = "ACM DNS validation for supertravelr.com + *.supertravelr.com. Managed by _core/infra/cloudflare."
 }
+
+# ── ACM domain validation: one record per held domain ────────────────────────
+#
+# From `terraform output domain_acm_validation_records` in ../existing
+# (domain-acm.tf), copied 2026-10-14 — copied rather than read through
+# terraform_remote_state for the same reason as the visa-api record above: this
+# stack's role reaches the cloudflare/* state prefix and nothing else.
+#
+# ONE record per domain covers BOTH names on its certificate. Each certificate
+# carries `<domain>` and `*.<domain>`, and ACM validates both against the same
+# registrable domain, so it emits a single CNAME for the pair.
+#
+# The values are stable for the life of each certificate — renewals reuse them —
+# so these do not rot. Deleting one does not break anything today; it breaks that
+# domain's next automatic renewal, silently, about eleven months from now. That is
+# exactly how superwomn.com's email-validated certificate lapsed on 2026-10-04.
+#
+# Zone ids are inline for the eleven held domains because zones.tf deliberately
+# lists only zones this stack applies edge policy to; a validation record is not
+# edge policy, and adding them there would sweep them into cache and bot rules.
+locals {
+  acm_validation = {
+    "aeternm.com"      = { zone_id = "82b0dd20de40b11684f34be58fe4e740", name = "_5a37ee5dec919d0ff6ccca6f9aaaf27b.aeternm.com", content = "_59594753f620f3ae59df1189b0f31eb4.wzccmgtwzk.acm-validations.aws" }
+    "agentlox.com"     = { zone_id = "d73ebffdf0b40385e8a12d4f7e7940fe", name = "_8df9edce82f4900f5b43f11649abb759.agentlox.com", content = "_a4334af824114213297de31e05690dd5.wzccmgtwzk.acm-validations.aws" }
+    "agentparle.com"   = { zone_id = "509d2feb0dfdd0e2942dc3bd0883b0cf", name = "_8bed55dfc30300f56efbc9add3236544.agentparle.com", content = "_66e41d0bd4bab675c3af834c9bd6e686.wzccmgtwzk.acm-validations.aws" }
+    "agicite.com"      = { zone_id = "4c891a22ccc4cd9df55dd976f562d159", name = "_9a0ec2baea7cdff11b83af649a8e1c68.agicite.com", content = "_c2bc445c9cc0295f4b0a32e229092550.wzccmgtwzk.acm-validations.aws" }
+    "agiremit.com"     = { zone_id = "05eebae5661a13224b4f2aa9bfc03659", name = "_a4822520dfb565c1df73190485aaa52b.agiremit.com", content = "_d5c75e2291b933ab8e4cd7592a05242d.wzccmgtwzk.acm-validations.aws" }
+    "allowline.com"    = { zone_id = "a8b99440bfffd10e325406116aedfb9f", name = "_bd0e591e835d2eb614141097f5079c04.allowline.com", content = "_461920fdf12185ff63ffd36ad9530e42.wzccmgtwzk.acm-validations.aws" }
+    "betterity.com"    = { zone_id = "34ac30591e8963893ba6866a72e6759b", name = "_85ff53831404d3bcbeb17ccb192d6409.betterity.com", content = "_58f171d6e25f3fbc8e5c61f08e1146e1.wzccmgtwzk.acm-validations.aws" }
+    "fetchtoll.com"    = { zone_id = "d67aba49585639da0a1d74ceb1d430d9", name = "_43dba11b43ec11edf998a1a06167f74c.fetchtoll.com", content = "_9dbc770804b11ffd7a78908fcd739b59.wzccmgtwzk.acm-validations.aws" }
+    "longahealth.com"  = { zone_id = "6da55e1c24b000ba73d961338764c858", name = "_b3c9fc5a65e963abb3d834fa8502b53b.longahealth.com", content = "_ffe5ead23b5f4d1bcc753bcc6fea9dc0.wzccmgtwzk.acm-validations.aws" }
+    "maxagenter.com"   = { zone_id = "6ddd2ec6334c1f661d6a9a294de674bb", name = "_aad3c683bd51159aaa1537c336a3a683.maxagenter.com", content = "_2bfd082b893c3b90d290b56556a31aae.wzccmgtwzk.acm-validations.aws" }
+    "rashtrnirman.com" = { zone_id = "da1db0ccf2e4edf729f7f772ccabde37", name = "_03a79f6172fb88401f16f7a20440f1be.rashtrnirman.com", content = "_25f9530b17001e2a4d889b5dc709d913.wzccmgtwzk.acm-validations.aws" }
+    "superwomn.com"    = { zone_id = local.archived_zones.superwomn.zone_id, name = "_bcdac94b443250d429029f03bd12f258.superwomn.com", content = "_9bb382e8042f7a5228539b8efb36cab0.wzccmgtwzk.acm-validations.aws" }
+
+    # The five that were EMAIL-validated until these replaced them.
+    "agitome.com"     = { zone_id = local.topology_only_zones.agitome.zone_id, name = "_92d04016c289081595a90839c9aed7c7.agitome.com", content = "_c0362068c6221e38100bf524c2d7289a.wzccmgtwzk.acm-validations.aws" }
+    "geniusjnr.com"   = { zone_id = local.active_zones.geniusjnr.zone_id, name = "_97ed8b511c4ebaea4ebc3f6e20bacd92.geniusjnr.com", content = "_46135fe7cf0fc2f461851ddba33ec622.wzccmgtwzk.acm-validations.aws" }
+    "nirlendu.com"    = { zone_id = local.archived_zones.nirlendu.zone_id, name = "_ee5d0d1b300e1f13d2696ff501e1ce28.nirlendu.com", content = "_3db503139c832cb7e89cdbf2e0b41a94.zzxlnyslwt.acm-validations.aws" }
+    "purvadas.com"    = { zone_id = "f130dcc658f20e6e0915b456b610eba9", name = "_b10c1bfdb033a26cbe404e5842a1d480.purvadas.com", content = "_e861f999191d21e20222ffd839711ef0.wzccmgtwzk.acm-validations.aws" }
+    "suprhealthe.com" = { zone_id = local.archived_zones.suprhealthe.zone_id, name = "_a557d289fb398f88c423d3450ad20989.suprhealthe.com", content = "_ae9c237d5173d61ea05c43076c1058c7.wzccmgtwzk.acm-validations.aws" }
+  }
+}
+
+resource "cloudflare_dns_record" "acm_validation" {
+  for_each = local.acm_validation
+
+  zone_id = each.value.zone_id
+  name    = each.value.name
+  type    = "CNAME"
+  # No trailing dot — Cloudflare normalises it away (see above).
+  content = each.value.content
+  ttl     = 60
+  # Mandatory: a proxied CNAME answers with Cloudflare's address, and ACM never
+  # sees the value it is waiting for.
+  proxied = false
+  comment = "ACM DNS validation for ${each.key} + *.${each.key}. Managed by _core/infra/cloudflare."
+}
